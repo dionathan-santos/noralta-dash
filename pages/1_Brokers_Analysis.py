@@ -322,7 +322,65 @@ def main():
     # Display the chart
     st.plotly_chart(fig_line, use_container_width=True)
 
-    
+
+
+
+    # Market Share Line Graph (Top 10 Firms)
+    st.header("Monthly Market Share by Firm (%)")
+
+    # Extract Month and Firm details
+    filtered_listings['Month'] = filtered_listings['Sold Date'].dt.to_period('M').dt.to_timestamp()
+
+    # Calculate Monthly Deals for Each Firm
+    monthly_firm_deals = (
+        filtered_listings.groupby(['Listing Firm 1 - Office Name', 'Month']).size() +
+        filtered_listings.groupby(['Buyer Firm 1 - Office Name', 'Month']).size()
+    ).reset_index(name='Deals')
+
+    # Calculate Total Monthly Deals
+    monthly_total_deals = filtered_listings.groupby('Month').size().reset_index(name='Total Deals')
+
+    # Merge Monthly Firm Deals with Total Deals to Calculate Market Share
+    market_share_monthly = pd.merge(monthly_firm_deals, monthly_total_deals, on='Month')
+    market_share_monthly['Market Share (%)'] = (market_share_monthly['Deals'] / market_share_monthly['Total Deals']) * 100
+
+    # Get Top 10 Firms by Total Market Share
+    top_firms = market_share_monthly.groupby('Listing Firm 1 - Office Name')['Market Share (%)'].sum().nlargest(10).index
+
+    # Filter Data for Top 10 Firms
+    top_firms_market_share = market_share_monthly[market_share_monthly['Listing Firm 1 - Office Name'].isin(top_firms)]
+
+    # Drop duplicates to ensure only one record per firm per month
+    top_firms_market_share = top_firms_market_share.drop_duplicates(subset=['Listing Firm 1 - Office Name', 'Month'])
+
+    # Line Graph for Market Share
+    fig_market_share = px.line(
+        top_firms_market_share,
+        x='Month',
+        y='Market Share (%)',
+        color='Listing Firm 1 - Office Name',
+        title="Monthly Market Share by Firm (%)",
+        labels={'Month': 'Month', 'Market Share (%)': 'Market Share (%)', 'Listing Firm 1 - Office Name': 'Firm'},
+    )
+
+    # Update Layout for Better Visualization
+    fig_market_share.update_traces(mode="lines+markers")  # Add markers
+    fig_market_share.update_layout(
+        xaxis=dict(title='Month'),
+        yaxis=dict(title='Market Share (%)'),
+        legend_title="Firm",
+        margin=dict(b=120),  # Extra space at the bottom
+    )
+
+    # Display the Graph
+    st.plotly_chart(fig_market_share, use_container_width=True)
+
+
+
+
+
+
+
 
 
     
