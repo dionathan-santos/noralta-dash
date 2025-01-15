@@ -1,531 +1,236 @@
 import streamlit as st
-import plotly.express as px
 import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+import folium
+from streamlit_folium import folium_static
+from datetime import datetime
+import numpy as np
 from utils.data_utils import get_mongodb_data
 
+# Set page config
+st.set_page_config(
+    page_title="Real Estate Market Analysis",
+    layout="wide"
+)
 
-def normalize_office_names(data, column_name):
-    """
-    Normalize office names by converting to lowercase and stripping whitespace.
-    """
-    data[column_name] = data[column_name].str.lower().str.strip()
-    return data
+# Custom CSS for better spacing and layout
+st.markdown("""
+    <style>
+    .main {
+        padding: 0rem 1rem;
+    }
+    .stMetric {
+        background-color: #f0f2f6;
+        padding: 10px;
+        border-radius: 5px;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-
-def filter_data(data, start_date, end_date, selected_cities=None, selected_communities=None, selected_building_types=None, selected_firms=None):
-    # Ensure "Sold Date" is converted to datetime for filtering
-    data['Sold Date'] = pd.to_datetime(data['Sold Date'], errors='coerce')
-
-    # Filter by date range
-    filtered_data = data[(data['Sold Date'] >= pd.Timestamp(start_date)) & (data['Sold Date'] <= pd.Timestamp(end_date))]
-
-    # Filter by selected cities, if any
-    if selected_cities and len(selected_cities) > 0:
-        filtered_data = filtered_data[filtered_data['Area/City'].isin(selected_cities)]
-
-    # Filter by selected communities, if any
-    if selected_communities and len(selected_communities) > 0:
-        filtered_data = filtered_data[filtered_data['Community'].isin(selected_communities)]
-
-    # Filter by Building Type, if any
-    if selected_building_types and len(selected_building_types) > 0:
-        filtered_data = filtered_data[filtered_data['Building Type'].isin(selected_building_types)]
-
-    # Filter by Firm - Office, if any
-    if selected_firms and len(selected_firms) > 0:
-        filtered_data = filtered_data[
-            (filtered_data['Listing Firm 1 - Office Name'].isin(selected_firms)) |
-            (filtered_data['Buyer Firm 1 - Office Name'].isin(selected_firms))
-        ]
-
-    return filtered_data
-
-
-def color_offices(index_values):
-    # Custom color-mapping function for offices
-    return [
-        "red" if office == "royal lepage noralta real estate" else "blue"
-        for office in index_values
-    ]
-
-
-def main():
-    st.title("Brokers Analysis")
-    st.write("Analyze broker performance and activity.")
-
+def load_data():
     # MongoDB connection
     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     database_name = "real_estate"
 
-    # Fetch data from both collections
+    # Fetch data from listings collection
     listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
-    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
 
-    if listings_data.empty or brokerage_data.empty:
-        st.error("No data available!")
-        return
+    # Convert price columns to numeric
+    price_columns = ['List Price', 'Sold Price', 'Price Per SQFT']
+    for col in price_columns:
+        listings_data[col] = listings_data[col].str.replace('[$,]', '', regex=True).astype(float)
 
-    # Normalize office names in both collections
-    listings_data = normalize_office_names(listings_data, 'Listing Firm 1 - Office Name')
-    listings_data = normalize_office_names(listings_data, 'Buyer Firm 1 - Office Name')
-    brokerage_data = normalize_office_names(brokerage_data, 'Broker')
+    # Convert dates
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'])
 
-    # Convert dates to datetime
-    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
-    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], errors='coerce')
+    return listings_data
 
-    # Get actual min/max dates from the data
-    actual_min_date = min(listings_data['Sold Date'].min(), brokerage_data['Date'].min())
-    actual_max_date = max(listings_data['Sold Date'].max(), brokerage_data['Date'].max())
+def filter_data(data, filters):
+    mask = pd.Series(True, index=data.index)
 
-    # Set default filter dates (01-Jan-2023 to 31-Dec-2024)
-    default_start = pd.Timestamp("2023-01-01")
-    default_end = pd.Timestamp("2024-12-31")
+    if filters.get('cities'):
+        mask &= data['Area/City'].isin(filters['cities'])
 
-    # Filters
+    if filters.get('communities'):
+        mask &= data['Community'].isin(filters['communities'])
+
+    if filters.get('property_types'):
+        mask &= data['Property Class'].isin(filters['property_types'])
+
+    if filters.get('beds_range'):
+        mask &= (data['Total Bedrooms'] >= filters['beds_range'][0]) & \
+                (data['Total Bedrooms'] <= filters['beds_range'][1])
+
+    if filters.get('baths_range'):
+        mask &= (data['Total Baths'] >= filters['baths_range'][0]) & \
+                (data['Total Baths'] <= filters['baths_range'][1])
+
+    if filters.get('price_range'):
+        mask &= (data['Sold Price'] >= filters['price_range'][0]) & \
+                (data['Sold Price'] <= filters['price_range'][1])
+
+    if filters.get('dom_range'):
+        mask &= (data['Days On Market'] >= filters['dom_range'][0]) & \
+                (data['Days On Market'] <= filters['dom_range'][1])
+
+    if filters.get('year_built'):
+        mask &= data['Year Built'].isin(filters['year_built'])
+
+    return data[mask]
+
+def create_sidebar_filters(data):
     st.sidebar.header("Filters")
-    start_date = st.sidebar.date_input("Start Date", default_start, actual_min_date, actual_max_date)
-    end_date = st.sidebar.date_input("End Date", default_end, actual_min_date, actual_max_date)
-    selected_cities = st.sidebar.multiselect("Select Area/City", sorted(listings_data['Area/City'].dropna().unique()))
-    selected_communities = st.sidebar.multiselect("Select Community", sorted(listings_data['Community'].dropna().unique()))
-    selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['Building Type'].dropna().unique()))
 
-    # Combine unique offices from Listing and Buyer firms
-    all_firms = sorted(set(listings_data['Listing Firm 1 - Office Name'].dropna().unique()) |
-                      set(listings_data['Buyer Firm 1 - Office Name'].dropna().unique()))
-    selected_firms = st.sidebar.multiselect("Select Firm - Office", all_firms)
-
-    # Apply filters
-    filtered_listings = filter_data(listings_data, start_date, end_date, selected_cities, selected_communities, selected_building_types, selected_firms)
-
-    filtered_listings['Sold Price'] = (
-    filtered_listings['Sold Price']
-    .replace('[\$,]', '', regex=True)
-    .astype(float)
-)
-
-    import locale
-
-    # Set the locale for currency formatting
-    locale.setlocale(locale.LC_ALL, '')  # Uses system locale. For US formatting, use 'en_US.UTF-8'.
-
-    def format_currency(value):
-        """Format a number as currency with commas and dots."""
-        return locale.currency(value, grouping=True)
-
-
-    # Visualization: Top 10 Listing Office Firms
-    listing_counts = filtered_listings['Listing Firm 1 - Office Name'].value_counts().head(10)
-
-    # Calculate Gross Sales for Listing Firms
-    gross_sales_listing = (
-        filtered_listings.groupby('Listing Firm 1 - Office Name')['Sold Price']
-        .sum()
-        .reindex(listing_counts.index)
-        .fillna(0)
+    # Area/City Filter
+    cities = sorted(data['Area/City'].unique())
+    selected_cities = st.sidebar.multiselect(
+        "Select Area/City",
+        options=cities,
+        default=[]
     )
 
-    # Visualization: Top 10 Listing Office Firms
-    fig1 = px.bar(
-        x=listing_counts.index.str.title(),
-        y=listing_counts.values,
-        text=listing_counts.values,
-        title="Top 10 Listing Office Firms",
-        labels={"x": "Office", "y": "Listings Count"},
-        height=600  # Increase chart height
+    # Community Filter
+    communities = sorted(data['Community'].unique())
+    selected_communities = st.sidebar.multiselect(
+        "Select Community",
+        options=communities,
+        default=[]
     )
 
-    fig1.update_traces(
-        textposition="outside",
-        marker_color=color_offices(listing_counts.index),
-        hovertemplate="<b>Office: %{x}</b><br>Total Deals: %{y}<br>Total Gross Sales: %{customdata}<extra></extra>",
-        customdata=[format_currency(v) for v in gross_sales_listing.values]  # Format gross sales as currency
+    # Property Type Filter
+    property_types = sorted(data['Property Class'].unique())
+    selected_property_types = st.sidebar.multiselect(
+        "Select Property Type",
+        options=property_types,
+        default=[]
     )
 
-    fig1.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45)  # Rotate the labels for better fit
+    # Beds & Baths Sliders
+    max_beds = int(data['Total Bedrooms'].max())
+    max_baths = int(data['Total Baths'].max())
+
+    beds_range = st.sidebar.slider(
+        "Number of Bedrooms",
+        0, max_beds, (0, max_beds)
     )
 
-    st.plotly_chart(fig1, use_container_width=True)
-
-    # Visualization: Top 10 Buyer Office Firms
-    buyer_counts = filtered_listings['Buyer Firm 1 - Office Name'].value_counts().head(10)
-
-    # Calculate Gross Sales for Buyer Firms
-    gross_sales_buyer = (
-        filtered_listings.groupby('Buyer Firm 1 - Office Name')['Sold Price']
-        .sum()
-        .reindex(buyer_counts.index)
-        .fillna(0)
+    baths_range = st.sidebar.slider(
+        "Number of Bathrooms",
+        0, max_baths, (0, max_baths)
     )
 
-    # Visualization: Top 10 Buyer Office Firms
-    fig2 = px.bar(
-        x=buyer_counts.index.str.title(),
-        y=buyer_counts.values,
-        text=buyer_counts.values,
-        title="Top 10 Buyer Office Firms",
-        labels={"x": "Office", "y": "Buyers Count"},
-        height=600  # Increase chart height
+    # Price Range Input
+    min_price = int(data['Sold Price'].min())
+    max_price = int(data['Sold Price'].max())
+    price_range = st.sidebar.slider(
+        "Price Range ($)",
+        min_price, max_price, (min_price, max_price),
+        step=10000,
+        format="$%d"
     )
 
-    fig2.update_traces(
-        textposition="outside",
-        marker_color=color_offices(buyer_counts.index),
-        hovertemplate="<b>Office: %{x}</b><br>Total Deals: %{y}<br>Total Gross Sales: %{customdata}<extra></extra>",
-        customdata=[format_currency(v) for v in gross_sales_buyer.values]  # Format gross sales as currency
+    # Days on Market Slider
+    dom_range = st.sidebar.slider(
+        "Days on Market",
+        0, 200, (0, 200)
     )
 
-    fig2.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45)  # Rotate the labels for better fit
+    # Year Built Selection
+    years = sorted(data['Year Built'].unique())
+    selected_years = st.sidebar.multiselect(
+        "Select Year Built",
+        options=years,
+        default=[]
     )
 
-    st.plotly_chart(fig2, use_container_width=True)
-
-
-    # Visualization: Top Combined Office Firms
-    combined_counts = (
-        filtered_listings['Listing Firm 1 - Office Name'].value_counts() +
-        filtered_listings['Buyer Firm 1 - Office Name'].value_counts()
-    ).dropna().sort_values(ascending=False).head(10)
-
-    # Calculate Gross Sales for Combined Firms (Listing + Buyer sides without duplication)
-    gross_sales_combined = filtered_listings.apply(
-        lambda x: x['Sold Price'] if x['Listing Firm 1 - Office Name'] != x['Buyer Firm 1 - Office Name'] else x['Sold Price'] / 2,
-        axis=1
-    ).groupby(filtered_listings['Listing Firm 1 - Office Name']).sum()
-
-    # Add Buyer side gross sales for offices not already included
-    gross_sales_combined += filtered_listings.groupby('Buyer Firm 1 - Office Name').apply(
-        lambda x: x['Sold Price'].where(
-            x['Listing Firm 1 - Office Name'] != x['Buyer Firm 1 - Office Name']
-        ).sum()
-    ).reindex(gross_sales_combined.index, fill_value=0)
-
-    # Reindex to match Top Combined Offices
-    gross_sales_combined = gross_sales_combined.reindex(combined_counts.index).fillna(0)
-
-    # Visualization: Top Combined Office Firms
-    fig3 = px.bar(
-        x=combined_counts.index.str.title(),
-        y=combined_counts.values,
-        text=combined_counts.values,
-        title="Top Combined Office Firms",
-        labels={"x": "Office", "y": "Total Count"},
-        height=600  # Increase chart height
-    )
-
-    fig3.update_traces(
-        textposition="outside",
-        marker_color=color_offices(combined_counts.index),
-        hovertemplate="<b>Office: %{x}</b><br>Total Deals: %{y}<br>Total Gross Sales: %{customdata}<extra></extra>",
-        customdata=[format_currency(v) for v in gross_sales_combined.values]  # Format gross sales as currency
-    )
-
-    fig3.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45)  # Rotate the labels for better fit
-    )
-
-
-    st.plotly_chart(fig3, use_container_width=True)
-
-    ##########################################
-
-    # Visualization: Deals Per Agent by Brokers
-    st.header("Deals Per Agent by Brokers")
-
-    # Filter brokerage data for the selected date range
-    filtered_brokerage = brokerage_data[(brokerage_data['Date'] >= pd.Timestamp(start_date)) & (brokerage_data['Date'] <= pd.Timestamp(end_date))]
-
-    # Group brokerage data by Broker and Month
-    filtered_brokerage['Month'] = filtered_brokerage['Date'].dt.to_period('M').dt.to_timestamp()
-    monthly_agents = filtered_brokerage.groupby(['Broker', 'Month'])['Value'].mean().reset_index()
-    monthly_agents.columns = ['Broker', 'Month', 'Average Agents']
-
-    # Calculate monthly combined deals (listing + buyer)
-    monthly_combined_deals = pd.DataFrame()
-    for month in filtered_listings['Sold Date'].dt.to_period('M').unique():
-        month_data = filtered_listings[filtered_listings['Sold Date'].dt.to_period('M') == month]
-
-        # Combine counts for both listing and buyer deals
-        month_deals = (
-            month_data['Listing Firm 1 - Office Name'].value_counts() +
-            month_data['Buyer Firm 1 - Office Name'].value_counts()
-        ).reset_index()
-
-        # Rename columns
-        month_deals.columns = ['Broker', 'Deals']
-        month_deals['Month'] = month.to_timestamp()
-
-        # Append to the combined DataFrame
-        monthly_combined_deals = pd.concat([monthly_combined_deals, month_deals])
-
-
-    # Merge deals and agents data
-    merged_monthly = pd.merge(monthly_combined_deals, monthly_agents, on=['Broker', 'Month'], how='inner')
-    merged_monthly['Deals Per Agent'] = merged_monthly['Deals'] / merged_monthly['Average Agents']
-
-    # Create a complete list of all brokers and months
-    all_months = pd.date_range(start=start_date, end=end_date, freq='MS')  # Monthly start dates
-    all_brokers = merged_monthly['Broker'].unique()
-    complete_index = pd.MultiIndex.from_product([all_brokers, all_months], names=['Broker', 'Month'])
-
-    # Reindex the merged_monthly DataFrame to include all brokers and months
-    merged_monthly = merged_monthly.set_index(['Broker', 'Month']).reindex(complete_index).reset_index()
-
-    # Fill missing values with 0
-    merged_monthly['Deals'].fillna(0, inplace=True)
-    merged_monthly['Average Agents'].fillna(0, inplace=True)
-    merged_monthly['Deals Per Agent'] = merged_monthly['Deals'] / merged_monthly['Average Agents']
-    merged_monthly['Deals Per Agent'].fillna(0, inplace=True)
-
-    # Get top 10 brokers by total deals
-    top_brokers = merged_monthly.groupby('Broker')['Deals'].sum().nlargest(10).index
-    filtered_monthly_top = merged_monthly[merged_monthly['Broker'].isin(top_brokers)]
-
-    # Ensure Royal LePage is included
-    royal_data = merged_monthly[merged_monthly['Broker'] == "royal lepage noralta real estate"]
-    if not royal_data.empty and "royal lepage noralta real estate" not in top_brokers:
-        filtered_monthly_top = pd.concat([filtered_monthly_top, royal_data])
-
-    # Create line graph
-    fig_line = px.line(
-        filtered_monthly_top,
-        x='Month',
-        y='Deals Per Agent',
-        color='Broker',
-        title="Monthly Deals Per Agent by Broker",
-        labels={'Deals Per Agent': 'Deals Per Agent', 'Month': 'Month', 'Broker': 'Broker'}
-    )
-
-    # Update traces to add markers
-    fig_line.update_traces(
-        mode='lines+markers',  # Add markers
-        marker=dict(size=6, symbol='circle'),  # Customize marker size and shape
-    )
-
-    # Make Royal LePage line thicker
-    fig_line.update_traces(
-        selector=dict(name="royal lepage noralta real estate"),
-        line=dict(width=4),
-        marker=dict(size=8, symbol='square')  # Use a different marker for emphasis
-    )
-
-    # Customize tooltip for hover
-    fig_line.update_traces(
-        hovertemplate="<b>Broker: %{Broker}</b><br>Month: %{x}<br>Deals Per Agent: %{y:.2f}<extra></extra>"
-    )
-
-    # Display the chart
-    st.plotly_chart(fig_line, use_container_width=True)
-
-
-
-
-    # Market Share Line Graph (Top 10 Firms)
-    st.header("Monthly Market Share by Firm (%)")
-
-    # Extract Month and Firm details
-    filtered_listings['Month'] = filtered_listings['Sold Date'].dt.to_period('M').dt.to_timestamp()
-
-    # Calculate Monthly Deals for Each Firm
-    monthly_firm_deals = (
-        filtered_listings.groupby(['Listing Firm 1 - Office Name', 'Month']).size() +
-        filtered_listings.groupby(['Buyer Firm 1 - Office Name', 'Month']).size()
-    ).reset_index(name='Deals')
-
-    # Calculate Total Monthly Deals
-    monthly_total_deals = filtered_listings.groupby('Month').size().reset_index(name='Total Deals')
-
-    # Merge Monthly Firm Deals with Total Deals to Calculate Market Share
-    market_share_monthly = pd.merge(monthly_firm_deals, monthly_total_deals, on='Month')
-    market_share_monthly['Market Share (%)'] = (market_share_monthly['Deals'] / market_share_monthly['Total Deals']) * 100
-
-    # Get Top 10 Firms by Total Market Share
-    top_firms = market_share_monthly.groupby('Listing Firm 1 - Office Name')['Market Share (%)'].sum().nlargest(10).index
-
-    # Filter Data for Top 10 Firms
-    top_firms_market_share = market_share_monthly[market_share_monthly['Listing Firm 1 - Office Name'].isin(top_firms)]
-
-    # Drop duplicates to ensure only one record per firm per month
-    top_firms_market_share = top_firms_market_share.drop_duplicates(subset=['Listing Firm 1 - Office Name', 'Month'])
-
-    # Line Graph for Market Share
-    fig_market_share = px.line(
-        top_firms_market_share,
-        x='Month',
-        y='Market Share (%)',
-        color='Listing Firm 1 - Office Name',
-        title="Monthly Market Share by Firm (%)",
-        labels={'Month': 'Month', 'Market Share (%)': 'Market Share (%)', 'Listing Firm 1 - Office Name': 'Firm'},
-    )
-
-    # Update Layout for Better Visualization
-    fig_market_share.update_traces(mode="lines+markers")  # Add markers
-    fig_market_share.update_layout(
-        xaxis=dict(title='Month'),
-        yaxis=dict(title='Market Share (%)'),
-        legend_title="Firm",
-        margin=dict(b=120),  # Extra space at the bottom
-    )
-
-    # Display the Graph
-    st.plotly_chart(fig_market_share, use_container_width=True)
-
-
-
-
-
-
-
-
-
-    
-    # Table: Active Agents Per Month for Top Firms
-    st.header("Active Agents Per Firm by Month")
-
-    # Extract Month and Firm details
-    filtered_listings['Month'] = filtered_listings['Sold Date'].dt.to_period('M').dt.to_timestamp()
-
-    # Group data by firm and month to calculate unique agents
-    monthly_firm_data = filtered_listings.groupby(['Listing Firm 1 - Office Name', 'Month']).agg(
-        Unique_Listing_Agents=('Listing Agent 1 - Agent Name', pd.Series.nunique),
-        Unique_Buyer_Agents=('Buyer Agent 1 - Agent Name', pd.Series.nunique),
-    ).reset_index()
-
-    # Calculate total active agents (listing + buyer agents)
-    monthly_firm_data['Total_Active_Agents'] = (
-        monthly_firm_data['Unique_Listing_Agents'] + monthly_firm_data['Unique_Buyer_Agents']
-    )
-
-    # Filter the firms to match those included in the "Deals Per Agent by Brokers" graph
-    top_firms = merged_monthly['Broker'].unique()  # Assuming top_firms is derived from the graph
-    filtered_firm_data_top = monthly_firm_data[monthly_firm_data['Listing Firm 1 - Office Name'].isin(top_firms)]
-
-    # Pivot the data to create a table format with firms as rows and months as columns
-    active_agents_table = filtered_firm_data_top.pivot_table(
-        index='Listing Firm 1 - Office Name',
-        columns='Month',
-        values='Total_Active_Agents',
-        aggfunc='sum'
-    ).fillna(0).astype(int)
-
-    # Rename columns to "Month-Year" format
-    active_agents_table.columns = active_agents_table.columns.strftime('%b-%Y')
-
-    # Display the table
-    st.dataframe(active_agents_table)
-
-    # Optionally allow download of the table
-    st.download_button(
-        label="Download Table as CSV",
-        data=active_agents_table.to_csv(),
-        file_name="active_agents_per_firm_by_month.csv",
-        mime="text/csv"
-    )
-
-
-
-
-
-
-
-
-    # Create a mapping of agents to their respective listing or buyer firms
-    agent_to_firm_mapping = filtered_listings.groupby('Listing Agent 1 - Agent Name')['Listing Firm 1 - Office Name'].first().to_dict()
-    agent_to_firm_mapping.update(
-        filtered_listings.groupby('Buyer Agent 1 - Agent Name')['Buyer Firm 1 - Office Name'].first().to_dict()
-    )
-
-    # Add firm name to each graph's tooltip
-
-    # Visualization: Top 10 Listing Agents
-    st.header("Top 10 Listing Agents")
-    listing_agents_counts = filtered_listings['Listing Agent 1 - Agent Name'].value_counts().head(10)
-    fig_listing_agents = px.bar(
-        x=listing_agents_counts.index.str.title(),
-        y=listing_agents_counts.values,
-        text=listing_agents_counts.values,
-        title="Top 10 Listing Agents",
-        labels={"x": "Agent", "y": "Listings Count"},
-    )
-
-    fig_listing_agents.update_traces(
-        textposition="inside",  # Display text inside the bars
-        marker_color="blue",
-        textfont=dict(size=12, color="white"),  # Improve readability
-        hovertemplate="<b>Agent: %{x}</b><br>Firm: %{customdata}<br>Total Listings: %{y}<extra></extra>",
-        customdata=[agent_to_firm_mapping.get(agent, "Unknown Firm") for agent in listing_agents_counts.index]
-    )
-
-    fig_listing_agents.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45),  # Rotate the labels for better fit
-        yaxis=dict(title="Listings Count", automargin=True),  # Adjust axis
-        title=dict(x=0.5)  # Center the title
-    )
-    st.plotly_chart(fig_listing_agents, use_container_width=True)
-
-    # Visualization: Top 10 Buyer Agents
-    st.header("Top 10 Buyer Agents")
-    buyer_agents_counts = filtered_listings["Buyer Agent 1 - Agent Name"].value_counts().head(10)
-    fig_buyer_agents = px.bar(
-        x=buyer_agents_counts.index.str.title(),
-        y=buyer_agents_counts.values,
-        text=buyer_agents_counts.values,
-        title="Top 10 Buyer Agents",
-        labels={"x": "Agent", "y": "Buyers Count"},
-    )
-
-    fig_buyer_agents.update_traces(
-        textposition="inside",  # Display text inside the bars
-        marker_color="green",
-        textfont=dict(size=12, color="white"),  # Improve readability
-        hovertemplate="<b>Agent: %{x}</b><br>Firm: %{customdata}<br>Total Buyers: %{y}<extra></extra>",
-        customdata=[agent_to_firm_mapping.get(agent, "Unknown Firm") for agent in buyer_agents_counts.index]
-    )
-
-    fig_buyer_agents.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45),  # Rotate the labels for better fit
-        yaxis=dict(title="Buyers Count", automargin=True),  # Adjust axis
-        title=dict(x=0.5)  # Center the title
-    )
-    st.plotly_chart(fig_buyer_agents, use_container_width=True)
-
-    # Visualization: Top Combined Agents
-    st.header("Top 10 Combined Agents")
-    combined_agents_counts = (
-        filtered_listings['Listing Agent 1 - Agent Name'].value_counts() +
-        filtered_listings["Buyer Agent 1 - Agent Name"].value_counts()
-    ).dropna().sort_values(ascending=False).head(10)
-
-    fig_combined_agents = px.bar(
-        x=combined_agents_counts.index.str.title(),
-        y=combined_agents_counts.values,
-        text=combined_agents_counts.values,
-        title="Top 10 Combined Agents",
-        labels={"x": "Agent", "y": "Total Count"},
-    )
-
-    fig_combined_agents.update_traces(
-        textposition="inside",  # Display text inside the bars
-        marker_color="purple",
-        textfont=dict(size=12, color="white"),  # Improve readability
-        hovertemplate="<b>Agent: %{x}</b><br>Firm: %{customdata}<br>Total Deals: %{y}<extra></extra>",
-        customdata=[agent_to_firm_mapping.get(agent, "Unknown Firm") for agent in combined_agents_counts.index]
-    )
-
-    fig_combined_agents.update_layout(
-        margin=dict(b=120),  # Add extra space at the bottom
-        xaxis=dict(tickangle=-45),  # Rotate the labels for better fit
-        yaxis=dict(title="Total Count", automargin=True),  # Adjust axis
-        title=dict(x=0.5)  # Center the title
-    )
-    st.plotly_chart(fig_combined_agents, use_container_width=True)
+    return {
+        'cities': selected_cities,
+        'communities': selected_communities,
+        'property_types': selected_property_types,
+        'beds_range': beds_range,
+        'baths_range': baths_range,
+        'price_range': price_range,
+        'dom_range': dom_range,
+        'year_built': selected_years
+    }
+
+def display_kpis(filtered_data):
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric(
+            "Total Listings Sold",
+            f"{len(filtered_data):,}"
+        )
+
+    with col2:
+        avg_dom = filtered_data['Days On Market'].mean()
+        st.metric(
+            "Average Days on Market",
+            f"{avg_dom:.1f} days"
+        )
+
+    with col3:
+        avg_price = filtered_data['Sold Price'].mean()
+        st.metric(
+            "Average Sold Price",
+            f"${avg_price:,.2f}"
+        )
+
+    with col4:
+        avg_price_sqft = filtered_data['Price Per SQFT'].mean()
+        st.metric(
+            "Average Price/SqFt",
+            f"${avg_price_sqft:.2f}"
+        )
+
+def main():
+    st.title("Real Estate Market Analysis")
+    st.write("Comprehensive market analysis and performance metrics")
+
+    # Load data
+    data = load_data()
+
+    # Create and apply filters
+    filters = create_sidebar_filters(data)
+    filtered_data = filter_data(data, filters)
+
+    # Display KPIs
+    display_kpis(filtered_data)
+
+    # Create two columns for the charts
+    col1, col2 = st.columns(2)
+
+    with col1:
+        # Price Trends Chart
+        st.subheader("Price Trends")
+        price_trends = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
+            'List Price': 'mean',
+            'Sold Price': 'mean'
+        }).reset_index()
+
+        fig_price = px.line(price_trends,
+                          x='Sold Date',
+                          y=['List Price', 'Sold Price'],
+                          title="Average List vs Sold Price Trends")
+        st.plotly_chart(fig_price, use_container_width=True)
+
+    with col2:
+        # Days on Market Analysis
+        st.subheader("Days on Market Distribution")
+        fig_dom = px.histogram(filtered_data,
+                             x='Days On Market',
+                             nbins=30,
+                             title="Distribution of Days on Market")
+        st.plotly_chart(fig_dom, use_container_width=True)
+
+    # Map visualization
+    st.subheader("Property Locations")
+    # Note: You'll need to add latitude and longitude to your data for this to work
+    # This is a placeholder for the map visualization
+
+    # Add more visualizations as needed
 
 if __name__ == "__main__":
     main()
