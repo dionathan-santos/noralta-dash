@@ -338,10 +338,9 @@ def main():
             hoverongaps=False,
             hovertemplate=(
                 "<b>Community: %{x}</b><br>" +
-                "Average Days on Market: %{y:.1f} days<br>" +
+
                 "Number of Sales: %{z}<br>" +
-                "Average Sales Price: $%{customdata[0]:,.2f}<br>" +
-                "Total Volume: $%{customdata[1]:,.2f}<br>" +
+
                 "Top Selling Firm: %{customdata[2]}<extra></extra>"
             ),
             customdata=np.array([
