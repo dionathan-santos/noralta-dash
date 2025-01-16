@@ -162,13 +162,13 @@ def main():
     col3, col4 = st.columns(2)
 
     with col3:
-        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().sum().nlargest(5).reset_index()
+        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().nlargest(5).reset_index(name='Total Deals')
         top_agents['Rank'] = top_agents.index + 1
         st.write("Top 5 Performing Agents (Total Deals):")
         st.table(top_agents)
 
     with col4:
-        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().sum().nsmallest(5).reset_index()
+        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().nsmallest(5).reset_index(name='Total Deals')
         bottom_agents['Rank'] = bottom_agents.index + 1
         st.write("Bottom 5 Performing Agents (Total Deals):")
         st.table(bottom_agents)
@@ -176,7 +176,7 @@ def main():
 
 
 
-        
+
 
     # Community Dominance
     st.subheader("Community Dominance")
