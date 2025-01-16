@@ -221,18 +221,39 @@ def main():
     # Listing Efficiency
     st.subheader("Listing Efficiency")
 
-    noralta_dom = noralta_data['Days On Market'].mean()
-    market_dom = filtered_data['Days On Market'].mean()
-    noralta_sold_ratio = noralta_data['Sold Pr / List Pr Ratio'].mean()
-    market_sold_ratio = filtered_data['Sold Pr / List Pr Ratio'].mean()
+    # Create two columns for the KPIs
+    col1, col2 = st.columns(2)
 
-    listing_efficiency = pd.DataFrame({
-        'Metric': ['Average Days on Market', 'Sold Price/List Price Ratio'],
-        'Noralta': [noralta_dom, noralta_sold_ratio],
-        'Market': [market_dom, market_sold_ratio]
-    })
+    # Format the metrics
+    noralta_dom = int(noralta_data['Days On Market'].mean())
+    market_dom = int(filtered_data['Days On Market'].mean())
+    noralta_sold_ratio = round(noralta_data['Sold Pr / List Pr Ratio'].mean(), 1)
+    market_sold_ratio = round(filtered_data['Sold Pr / List Pr Ratio'].mean(), 1)
 
-    st.dataframe(listing_efficiency)
+    # Calculate the differences for the delta
+    dom_delta = market_dom - noralta_dom
+    ratio_delta = noralta_sold_ratio - market_sold_ratio
+
+    with col1:
+        st.metric(
+            label="Average Days on Market",
+            value=f"{noralta_dom} days",
+            delta=f"{-dom_delta} days vs market" if dom_delta > 0 else f"{abs(dom_delta)} days vs market",
+            delta_color="inverse"
+        )
+
+    with col2:
+        st.metric(
+            label="Sold/List Price Ratio",
+            value=f"{noralta_sold_ratio}%",
+            delta=f"{ratio_delta:.1f}% vs market",
+            delta_color="normal"
+        )
+
+
+
+
+        
 
     # Revenue Contribution
     st.subheader("Revenue Contribution")
