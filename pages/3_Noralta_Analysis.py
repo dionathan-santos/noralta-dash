@@ -141,80 +141,80 @@ def main():
 
 
     # KPIs
-        st.subheader("KPIs")
+    st.subheader("KPIs")
 
-        col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns(4)
 
-        with col1:
-            st.metric("Total Listings Closed by Noralta", len(noralta_data))
+    with col1:
+        st.metric("Total Listings Closed by Noralta", len(noralta_data))
 
-        with col2:
-            avg_deals_per_agent = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
-            st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
+    with col2:
+        avg_deals_per_agent = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
+        st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
 
-        with col3:
-            top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5)
-            st.metric("Top 5 Performing Agents (Sales Volume)", top_agents.to_dict())
+    with col3:
+        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5)
+        st.metric("Top 5 Performing Agents (Sales Volume)", top_agents.to_dict())
 
-        with col4:
-            bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nsmallest(5)
-            st.metric("Bottom 5 Performing Agents (Sales Volume)", bottom_agents.to_dict())
+    with col4:
+        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nsmallest(5)
+        st.metric("Bottom 5 Performing Agents (Sales Volume)", bottom_agents.to_dict())
 
-        # Community Dominance
-        st.subheader("Community Dominance")
+    # Community Dominance
+    st.subheader("Community Dominance")
 
-        community_sales = noralta_data.groupby('Community').size().nlargest(5)
-        st.bar_chart(community_sales)
+    community_sales = noralta_data.groupby('Community').size().nlargest(5)
+    st.bar_chart(community_sales)
 
-        community_market_share = noralta_data.groupby('Community').size() / filtered_data.groupby('Community').size()
-        community_market_share = community_market_share.dropna().sort_values(ascending=False).head(5)
-        st.bar_chart(community_market_share)
+    community_market_share = noralta_data.groupby('Community').size() / filtered_data.groupby('Community').size()
+    community_market_share = community_market_share.dropna().sort_values(ascending=False).head(5)
+    st.bar_chart(community_market_share)
 
-        # Listing Efficiency
-        st.subheader("Listing Efficiency")
+    # Listing Efficiency
+    st.subheader("Listing Efficiency")
 
-        noralta_dom = noralta_data['Days On Market'].mean()
-        market_dom = filtered_data['Days On Market'].mean()
-        st.metric("Average Days on Market for Noralta", f"{noralta_dom:.1f} days")
-        st.metric("Market Average Days on Market", f"{market_dom:.1f} days")
+    noralta_dom = noralta_data['Days On Market'].mean()
+    market_dom = filtered_data['Days On Market'].mean()
+    st.metric("Average Days on Market for Noralta", f"{noralta_dom:.1f} days")
+    st.metric("Market Average Days on Market", f"{market_dom:.1f} days")
 
-        noralta_sold_ratio = noralta_data['Sold Pr / List Pr Ratio'].mean()
-        market_sold_ratio = filtered_data['Sold Pr / List Pr Ratio'].mean()
-        st.metric("Sold Price/List Price Ratio for Noralta", f"{noralta_sold_ratio:.2f}")
-        st.metric("Market Average Sold Price/List Price Ratio", f"{market_sold_ratio:.2f}")
+    noralta_sold_ratio = noralta_data['Sold Pr / List Pr Ratio'].mean()
+    market_sold_ratio = filtered_data['Sold Pr / List Pr Ratio'].mean()
+    st.metric("Sold Price/List Price Ratio for Noralta", f"{noralta_sold_ratio:.2f}")
+    st.metric("Market Average Sold Price/List Price Ratio", f"{market_sold_ratio:.2f}")
 
-        # Revenue Contribution
-        st.subheader("Revenue Contribution")
+    # Revenue Contribution
+    st.subheader("Revenue Contribution")
 
-        total_sales_volume = noralta_data['Sold Price'].sum()
-        st.metric("Total Sales Volume Attributable to Noralta", f"${total_sales_volume:,.2f}")
+    total_sales_volume = noralta_data['Sold Price'].sum()
+    st.metric("Total Sales Volume Attributable to Noralta", f"${total_sales_volume:,.2f}")
 
-        top_agents_contribution = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5)
-        st.bar_chart(top_agents_contribution)
+    top_agents_contribution = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5)
+    st.bar_chart(top_agents_contribution)
 
-        top_communities_contribution = noralta_data.groupby('Community')['Sold Price'].sum().nlargest(5)
-        st.bar_chart(top_communities_contribution)
+    top_communities_contribution = noralta_data.groupby('Community')['Sold Price'].sum().nlargest(5)
+    st.bar_chart(top_communities_contribution)
 
-        # Market Trends
-        st.subheader("Market Trends")
+    # Market Trends
+    st.subheader("Market Trends")
 
-        monthly_sales = noralta_data.groupby(noralta_data['Sold Date'].dt.to_period('M')).agg({
-            'Sold Price': 'sum',
-            'Days On Market': 'mean'
-        }).reset_index()
+    monthly_sales = noralta_data.groupby(noralta_data['Sold Date'].dt.to_period('M')).agg({
+        'Sold Price': 'sum',
+        'Days On Market': 'mean'
+    }).reset_index()
 
-        monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
+    monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
 
-        fig_trends = go.Figure()
-        fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Sold Price'],
-                                        name='Sales Volume', line=dict(color='blue')))
-        fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Days On Market'],
-                                        name='Average DOM', line=dict(color='green')))
-        fig_trends.update_layout(title='Noralta Performance Over Time',
-                                xaxis_title='Date',
-                                yaxis_title='Value',
-                                legend_title='Metric')
-        st.plotly_chart(fig_trends)
+    fig_trends = go.Figure()
+    fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Sold Price'],
+                                    name='Sales Volume', line=dict(color='blue')))
+    fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Days On Market'],
+                                    name='Average DOM', line=dict(color='green')))
+    fig_trends.update_layout(title='Noralta Performance Over Time',
+                            xaxis_title='Date',
+                            yaxis_title='Value',
+                            legend_title='Metric')
+    st.plotly_chartfig_trends
 
   
 
