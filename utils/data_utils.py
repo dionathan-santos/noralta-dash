@@ -18,3 +18,4 @@ def filter_data(data, start_date, end_date, area_city):
     if area_city:
         filtered_data = filtered_data[filtered_data['Area/City'] == area_city]
     return filtered_data
+
