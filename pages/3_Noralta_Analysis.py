@@ -176,23 +176,6 @@ def main():
 
     col3, col4 = st.columns(2)
 
-    with col3:
-        top_agents = all_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
-        st.write("Top 5 Performing Agents (Total Deals):")
-        st.table(top_agents)
-
-    with col4:
-        bottom_agents = all_deals.nsmallest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
-        st.write("Bottom 5 Performing Agents (Total Deals):")
-        st.table(bottom_agents)
-
-    # Download button for complete table
-    st.download_button(
-        label="Download Complete Agent Data",
-        data=all_deals[['Agent Name', 'Total Deals', 'Rank']].to_csv(index=False),
-        file_name='agent_data.csv',
-        mime='text/csv'
-    )
 
 
 
