@@ -142,10 +142,13 @@ def main():
         (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
     ]
 
+
+
+
     # KPIs
     st.subheader("KPIs")
 
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2 = st.columns(2)
 
     with col1:
         st.metric("Total Listings Closed by Noralta", len(noralta_data))
@@ -154,15 +157,26 @@ def main():
         avg_deals_per_agent = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
         st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
 
+    st.write("")  # Add a blank line for better readability
+
+    col3, col4 = st.columns(2)
+
     with col3:
-        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5).reset_index()
-        st.write("Top 5 Performing Agents (Sales Volume):")
+        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().sum().nlargest(5).reset_index()
+        top_agents['Rank'] = top_agents.index + 1
+        st.write("Top 5 Performing Agents (Total Deals):")
         st.table(top_agents)
 
     with col4:
-        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nsmallest(5).reset_index()
-        st.write("Bottom 5 Performing Agents (Sales Volume):")
+        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().sum().nsmallest(5).reset_index()
+        bottom_agents['Rank'] = bottom_agents.index + 1
+        st.write("Bottom 5 Performing Agents (Total Deals):")
         st.table(bottom_agents)
+
+
+
+
+        
 
     # Community Dominance
     st.subheader("Community Dominance")
