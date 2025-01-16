@@ -195,15 +195,72 @@ def main():
 
     # Sold Listings Over Time
     st.subheader("Sold Listings Over Time")
-    monthly_sales = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).size().reset_index(name='Number of Sales')
-    monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
 
+    # Group by property type and month
+    monthly_sales_by_type = filtered_data.groupby([filtered_data['Sold Date'].dt.to_period('M'), 'Property Class']).agg({
+        'Sold Price': ['sum', 'count', 'mean']
+    }).reset_index()
+
+    # Flatten the multi-level columns
+    monthly_sales_by_type.columns = ['Sold Date', 'Property Class', 'Total Gross Sales', 'Total Sales #', 'Avg Sales Price']
+    monthly_sales_by_type['Sold Date'] = monthly_sales_by_type['Sold Date'].dt.to_timestamp()
+
+    # Calculate total sales for all property types
+    total_sales = monthly_sales_by_type.groupby('Sold Date').agg({
+        'Total Gross Sales': 'sum',
+        'Total Sales #': 'sum',
+        'Avg Sales Price': 'mean'
+    }).reset_index()
+
+    # Create the figure
     fig_sales = go.Figure()
-    fig_sales.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Number of Sales'],
-                                 name='Number of Sales', line=dict(color='red')))
-    fig_sales.update_layout(title='Number of Properties Sold per Month',
-                          xaxis_title='Date',
-                          yaxis_title='Number of Sales')
+
+    # Add a thicker line for total sales
+    fig_sales.add_trace(go.Scatter(
+        x=total_sales['Sold Date'],
+        y=total_sales['Total Sales #'],
+        name='Total Sales',
+        line=dict(color='black', width=4),
+        hovertemplate=(
+            'Date: %{x}<br>' +
+            'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+            'Total Sales #: %{y}<br>' +
+            'Avg Sales Price: $%{customdata[1]:,.2f}'
+        ),
+        customdata=total_sales[['Total Gross Sales', 'Avg Sales Price']]
+    ))
+
+    # Add lines for each property type
+    property_types = ['Detached Single Family', 'Condo', 'Townhouse', 'Semi-Detached']
+    colors = ['blue', 'green', 'orange', 'purple']
+
+    for i, property_type in enumerate(property_types):
+        property_sales = monthly_sales_by_type[monthly_sales_by_type['Property Class'] == property_type]
+        fig_sales.add_trace(go.Scatter(
+            x=property_sales['Sold Date'],
+            y=property_sales['Total Sales #'],
+            name=property_type,
+            line=dict(color=colors[i], width=2),
+            hovertemplate=(
+                'Date: %{x}<br>' +
+                'Property Type: %{text}<br>' +
+                'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+                'Total Sales #: %{y}<br>' +
+                'Avg Sales Price: $%{customdata[1]:,.2f}'
+            ),
+            customdata=property_sales[['Total Gross Sales', 'Avg Sales Price']],
+            text=property_type
+        ))
+
+    # Update layout
+    fig_sales.update_layout(
+        title='Number of Properties Sold per Month by Property Type',
+        xaxis_title='Date',
+        yaxis_title='Number of Sales',
+        legend_title='Property Type'
+    )
+
+    # Display the chart
     st.plotly_chart(fig_sales)
 
 
