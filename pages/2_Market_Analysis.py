@@ -247,11 +247,11 @@ def main():
             name=style,
             line=dict(color=colors[i % len(colors)], width=2),
             hovertemplate=(
-                'Date: %{x}' +
-                'Style: %{text}' +
-                'Total Gross Sales: $%{customdata[0]:,.2f}' +
-                'Total Sales #: %{y}' +
-                'Avg Sales Price: $%{customdata[1]:,.2f}'
+                'Date: %{x}<br>' +
+                'Style: %{text}<br>' +
+                'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+                'Total Sales #: %{y}<br>' +
+                'Avg Sales Price: $%{customdata[1]:,.2f}<br>'
             ),
             customdata=style_sales[['Total Gross Sales', 'Avg Sales Price']],
             text=style
