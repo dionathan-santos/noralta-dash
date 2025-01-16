@@ -184,6 +184,10 @@ def main():
         mime='text/csv'
     )
 
+
+
+
+
     # KPIs
     st.subheader("KPIs")
 
@@ -200,15 +204,19 @@ def main():
 
     col3, col4 = st.columns(2)
 
+
+
+
+
     # Community Dominance
     st.subheader("Community Dominance")
 
-    community_sales = noralta_data.groupby('Community').size().nlargest(5)
+    community_sales = noralta_data.groupby('Community').size().nlargest(10)
     st.bar_chart(community_sales)
 
-    community_market_share = noralta_data.groupby('Community').size() / filtered_data.groupby('Community').size()
-    community_market_share = community_market_share.dropna().sort_values(ascending=False).head(5)
-    st.bar_chart(community_market_share)
+
+
+
 
     # Listing Efficiency
     st.subheader("Listing Efficiency")
