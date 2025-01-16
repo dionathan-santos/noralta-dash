@@ -309,66 +309,47 @@ def main():
     )
 
 
-    # Create community-based metrics
-    community_metrics = filtered_data.groupby('Community').agg({
-        'Sold Price': ['count', 'mean', 'sum'],
-        'Days On Market': 'mean',
-        'Listing Firm 1 - Office Name': lambda x: x.mode().iloc[0]  # Most common firm
-    }).reset_index()
 
-    # Flatten the multi-level columns
-    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']
 
-    # Create community-based metrics
-    community_metrics = filtered_data.groupby('Community').agg({
-        'Sold Price': ['count', 'mean', 'sum'],
-        'Days On Market': 'mean',
-        'Listing Firm 1 - Office Name': lambda x: x.mode().iloc[0]  # Most common firm
-    }).reset_index()
 
-    # Flatten the multi-level columns
-    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']
+
 
     # Filter to the top 20 communities by number of sales
     top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
 
-    # Create a heatmap
-    fig_heatmap = px.density_heatmap(
-        top_20_communities,
-        x='Community',
-        y='Average_DOM',
-        z='Number_of_Sales',
-        nbinsx=len(top_20_communities['Community'].unique()),
-        nbinsy=50,
-        title='Heatmap of Sold Properties by Top 20 Communities',
-        color_continuous_scale='Viridis',
-        hover_data={
-            'Community': True,
-            'Number_of_Sales': True,
-            'Average_Price': True,
-            'Total_Volume': True,
-            'Average_DOM': True,
-            'Top_Selling_Firm': True
-        }
-    )
-
-    # Customize the tooltip
-    fig_heatmap.update_traces(
+    # Create a heatmap using go.Figure instead of px.density_heatmap
+    fig_heatmap = go.Figure(data=go.Heatmap(
+        x=top_20_communities['Community'],
+        y=top_20_communities['Average_DOM'],
+        z=top_20_communities['Number_of_Sales'].values.reshape(-1, 1),
+        colorscale='Viridis',
+        hoverongaps=False,
         hovertemplate=(
-            "<b>Community: %{customdata[0]}</b><br>" +
-            "Total Sales: %{customdata[1]}<br>" +
-            "Average Sales Price: $%{customdata[2]:,.2f}<br>" +
-            "Total Volume: $%{customdata[3]:,.2f}<br>" +
-            "Average Days on Market: %{customdata[4]:.1f} days<br>" +
-            "Top Selling Firm: %{customdata[5]}<extra></extra>"
+            "<b>Community: %{x}</b>
+    " +
+            "Average DOM: %{y:.1f} days
+    " +
+            "Number of Sales: %{z}
+    " +
+            "Average Price: $%{customdata[0]:,.2f}
+    " +
+            "Total Volume: $%{customdata[1]:,.2f}
+    " +
+            "Top Selling Firm: %{customdata[2]}<extra></extra>"
         ),
-        customdata=top_20_communities[['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']]
-    )
+        customdata=np.column_stack((
+            top_20_communities['Average_Price'],
+            top_20_communities['Total_Volume'],
+            top_20_communities['Top_Selling_Firm']
+        ))
+    ))
 
     # Update layout
     fig_heatmap.update_layout(
+        title='Heatmap of Sold Properties by Top 20 Communities',
         xaxis_title='Community',
         yaxis_title='Average Days on Market',
+        xaxis={'tickangle': -45},
         coloraxis_colorbar_title='Number of Sales'
     )
 
