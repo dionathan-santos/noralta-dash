@@ -325,18 +325,12 @@ def main():
         colorscale='Viridis',
         hoverongaps=False,
         hovertemplate=(
-            "<b>Community: %{x}</b>
-    " +
-            "Average Days on Market: %{y:.1f} days
-    " +
-            "Number of Sales: %{z}
-    " +
-            "Average Sales Price: $%{customdata[0]:,.2f}
-    " +
-            "Total Volume: $%{customdata[1]:,.2f}
-    " +
-            "Top Selling Firm: %{customdata[2]}<extra></extra>"
-        ),
+            "<b>Community: %{x}</b>" +
+            "Average Days on Market: %{y:.1f} days" +
+            "Number of Sales: %{z}" +
+            "Average Sales Price: $%{customdata[0]:,.2f}" +
+            "Total Volume: $%{customdata[1]:,.2f}" +
+            "Top Selling Firm: %{customdata[2]}<extra></extra>"),
         customdata=np.dstack((
             top_20_communities['Average_Price'],
             top_20_communities['Total_Volume'],
