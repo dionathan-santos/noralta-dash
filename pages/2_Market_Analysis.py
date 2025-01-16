@@ -193,14 +193,28 @@ def main():
     st.plotly_chart(fig_price)
 
     # Days on Market Analysis
-    st.subheader("Days on Market Distribution")
-    fig_dom = px.histogram(filtered_data, x='Days On Market', nbins=50,
-                          title='Distribution of Days on Market')
-    st.plotly_chart(fig_dom)
+    st.subheader("Days on Market vs Sold Price Distribution")
 
+    # Create a 2D histogram (heatmap)
+    fig_dom_price = px.density_heatmap(
+        filtered_data,
+        x='Days On Market',
+        y='Sold Price',
+        nbinsx=50,
+        nbinsy=50,
+        title='Distribution of Days on Market vs Sold Price',
+        color_continuous_scale='Viridis'
+    )
 
-    st.subheader("Community Sales Heat Map")
+    fig_dom_price.update_layout(
+        xaxis_title='Days on Market',
+        yaxis_title='Sold Price ($)',
+        coloraxis_colorbar_title='Count'
+    )
 
+    st.plotly_chart(fig_dom_price)
+
+    
     # Create community-based metrics
     community_metrics = filtered_data.groupby('Community').agg({
         'Sold Price': ['count', 'mean', 'sum'],
