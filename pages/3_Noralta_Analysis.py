@@ -179,13 +179,8 @@ def main():
 
     noralta_dom = noralta_data['Days On Market'].mean()
     market_dom = filtered_data['Days On Market'].mean()
-    st.metric("Average Days on Market for Noralta", f"{noralta_dom:.1f} days")
-    st.metric("Market Average Days on Market", f"{market_dom:.1f} days")
-
     noralta_sold_ratio = noralta_data['Sold Pr / List Pr Ratio'].mean()
     market_sold_ratio = filtered_data['Sold Pr / List Pr Ratio'].mean()
-    st.metric("Sold Price/List Price Ratio for Noralta", f"{noralta_sold_ratio:.2f}")
-    st.metric("Market Average Sold Price/List Price Ratio", f"{market_sold_ratio:.2f}")
 
     listing_efficiency = pd.DataFrame({
         'Metric': ['Average Days on Market', 'Sold Price/List Price Ratio'],
@@ -221,14 +216,12 @@ def main():
     fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Sold Price'],
                                     name='Sales Volume', line=dict(color='blue')))
     fig_trends.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Days On Market'],
-                                    name='Average DOM', line=dict(color='green')))
+                                    name='Average DOM', line=dict(color='green'), yaxis='y2'))
     fig_trends.update_layout(title='Noralta Performance Over Time',
                             xaxis_title='Date',
                             yaxis_title='Sales Volume',
                             yaxis2=dict(title='Average DOM', overlaying='y', side='right'),
                             legend_title='Metric')
-    fig_trends.update_yaxes(title_text="Sales Volume", secondary_y=False)
-    fig_trends.update_yaxes(title_text="Average DOM", secondary_y=True)
     st.plotly_chart(fig_trends)
 
 if __name__ == "__main__":
