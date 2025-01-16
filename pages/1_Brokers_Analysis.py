@@ -382,24 +382,32 @@ def main():
     # Extract Month and Firm details
     filtered_listings['Month'] = filtered_listings['Sold Date'].dt.to_period('M').dt.to_timestamp()
 
-    # Group data by firm and month to calculate unique agents
-    monthly_firm_data = filtered_listings.groupby(['Listing Firm 1 - Office Name', 'Month']).agg(
-        Unique_Listing_Agents=('Listing Agent 1 - Agent Name', pd.Series.nunique),
-        Unique_Buyer_Agents=('Buyer Agent 1 - Agent Name', pd.Series.nunique),
-    ).reset_index()
+    # Create a DataFrame for listing agents
+    listing_agents = filtered_listings[['Listing Firm 1 - Office Name', 'Month', 'Listing Agent 1 - Agent Name']].rename(columns={
+        'Listing Firm 1 - Office Name': 'Firm',
+        'Listing Agent 1 - Agent Name': 'Agent'
+    })
 
-    # Calculate total active agents (listing + buyer agents)
-    monthly_firm_data['Total_Active_Agents'] = (
-        monthly_firm_data['Unique_Listing_Agents'] + monthly_firm_data['Unique_Buyer_Agents']
-    )
+    # Create a DataFrame for buyer agents
+    buyer_agents = filtered_listings[['Buyer Firm 1 - Office Name', 'Month', 'Buyer Agent 1 - Agent Name']].rename(columns={
+        'Buyer Firm 1 - Office Name': 'Firm',
+        'Buyer Agent 1 - Agent Name': 'Agent'
+    })
+
+    # Combine listing and buyer agents
+    all_agents = pd.concat([listing_agents, buyer_agents])
+
+    # Group by firm and month to calculate unique agents
+    monthly_firm_data = all_agents.groupby(['Firm', 'Month'])['Agent'].nunique().reset_index()
+    monthly_firm_data.columns = ['Firm', 'Month', 'Total_Active_Agents']
 
     # Filter the firms to match those included in the "Deals Per Agent by Brokers" graph
     top_firms = merged_monthly['Broker'].unique()  # Assuming top_firms is derived from the graph
-    filtered_firm_data_top = monthly_firm_data[monthly_firm_data['Listing Firm 1 - Office Name'].isin(top_firms)]
+    filtered_firm_data_top = monthly_firm_data[monthly_firm_data['Firm'].isin(top_firms)]
 
     # Pivot the data to create a table format with firms as rows and months as columns
     active_agents_table = filtered_firm_data_top.pivot_table(
-        index='Listing Firm 1 - Office Name',
+        index='Firm',
         columns='Month',
         values='Total_Active_Agents',
         aggfunc='sum'
