@@ -33,15 +33,13 @@ def filter_data(data, start_date, end_date, selected_cities=None, selected_commu
 
 # Helper function to format currency
 def format_currency(value):
+    """Format a number as currency without relying on locale settings."""
     if pd.isna(value):
         return 'N/A'
     try:
-        # Try to set locale
-        locale.setlocale(locale.LC_ALL, 'en_US.UTF-8')
-        return locale.currency(value, grouping=True)
-    except (locale.Error, ValueError):
-        # Fallback formatting if locale settings fail
         return f"${value:,.2f}"
+    except (TypeError, ValueError):
+        return 'N/A'
 
 # Helper function for plot customizations
 def customize_plot(fig, title):
