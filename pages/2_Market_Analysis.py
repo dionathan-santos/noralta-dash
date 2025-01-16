@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 import locale
 import seaborn as sns
 from pymongo import MongoClient
+import numpy as np
 
 
 def main():
