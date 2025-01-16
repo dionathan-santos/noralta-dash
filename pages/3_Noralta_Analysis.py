@@ -143,6 +143,43 @@ def main():
     ]
 
 
+    # Calculate top 5 agents for listings and buyers
+    top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Listing Agent 1 - Agent Name', 'Total Deals', 'Rank']]
+    top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Buyer Agent 1 - Agent Name', 'Total Deals', 'Rank']]
+
+    # Rename columns for consistency
+    top_listings_agents = top_listings_agents.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
+    top_buyers_agents = top_buyers_agents.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+
+    # Display tables
+    st.write("")  # Add a blank line for better readability
+    col1, col2 = st.columns(2)
+
+    with col1:
+        st.write("Top 5 Performing Agents (Listings):")
+        st.table(top_listings_agents)
+
+    with col2:
+        st.write("Top 5 Performing Agents (Buyers):")
+        st.table(top_buyers_agents)
+
+    # Download button for combined table
+    combined_agents = pd.concat([top_listings_agents, top_buyers_agents]).groupby('Agent Name').sum().reset_index()
+    st.download_button(
+        label="Download Combined Agent Data",
+        data=combined_agents.to_csv(index=False),
+        file_name='combined_agent_data.csv',
+        mime='text/csv'
+)
+
+
+
+
+
+
+
+
+
 
 
 
