@@ -16,34 +16,34 @@ def get_mongodb_data(mongodb_uri, database_name, collection_name):
     try:
         # Create a MongoDB client
         client = MongoClient(mongodb_uri)
-        
+
         # Get the database
         db = client[database_name]
-        
+
         # Get the collection
         collection = db[collection_name]
-        
+
         # Retrieve all documents from the collection
         data = list(collection.find({}, {'_id': 0}))  # Exclude MongoDB _id field
-        
+
         # Convert to DataFrame
         df = pd.DataFrame(data)
-        
+
         # Close the connection
         client.close()
-        
+
         if df.empty:
             st.error("No data retrieved from MongoDB")
-        
+
         return df
-    
+
     except Exception as e:
         st.error(f"Error connecting to MongoDB: {str(e)}")
         return pd.DataFrame()
 
 def main():
     st.title("Noralta Analysis")
-    st.write("Detailed analysis specific to Noralta properties.")
+    st.write("Detailed analysis specific to Noralta.")
 
     # MongoDB connection
     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
@@ -62,186 +62,277 @@ def main():
     data['List Price'] = data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
     data['Total Flr Area (SF)'] = data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
 
-    # Check and print column names
-    st.write("Column Names:", data.columns.tolist())
-
-    # Filters
+    # Sidebar Filters
     st.sidebar.header("Filters")
 
     # Date Range
-    st.sidebar.subheader("Date Range")
-    min_date = data['Sold Date'].min().date()
-    max_date = data['Sold Date'].max().date()
-    start_date = st.sidebar.date_input("Start Date", min_value=min_date, max_value=max_date, value=min_date)
-    end_date = st.sidebar.date_input("End Date", min_value=min_date, max_value=max_date, value=max_date)
+    min_date = data['Sold Date'].min()
+    max_date = data['Sold Date'].max()
+    default_start = datetime(2024, 1, 1)
+    default_end = datetime(2024, 12, 31)
+    start_date = st.sidebar.date_input("Start Date", value=default_start, min_value=min_date, max_value=max_date)
+    end_date = st.sidebar.date_input("End Date", value=default_end, min_value=min_date, max_value=max_date)
 
     # Agent-Specific
-    st.sidebar.subheader("Agent-Specific")
-    if 'Agent Name' in data.columns:
-        agents = data['Agent Name'].unique()
-        selected_agents = st.sidebar.multiselect("Select Agents", agents, default=agents)
-    else:
-        st.sidebar.write("No 'Agent Name' column found.")
-        selected_agents = []
-
-    top_bottom_agents = st.sidebar.selectbox("Top/Bottom Performing Agents", ["All", "Top 10", "Bottom 10"])
+    all_agents = sorted(set(data['Listing Agent 1 - Agent Name'].dropna().unique()) | set(data['Buyer Agent 1 - Agent Name'].dropna().unique()))
+    selected_agents = st.sidebar.multiselect("Select Agents", all_agents)
 
     # Community
-    st.sidebar.subheader("Community")
-    if 'Community' in data.columns:
-        communities = data['Community'].unique()
-        selected_communities = st.sidebar.multiselect("Select Communities", communities, default=communities)
-    else:
-        st.sidebar.write("No 'Community' column found.")
-        selected_communities = []
+    communities = sorted(data['Community'].dropna().unique())
+    selected_communities = st.sidebar.multiselect("Select Communities", communities)
 
     # Property Type
-    st.sidebar.subheader("Property Type")
-    if 'Property Class' in data.columns:
-        property_classes = data['Property Class'].unique()
-        selected_property_classes = st.sidebar.multiselect("Select Property Classes", property_classes, default=property_classes)
-    else:
-        st.sidebar.write("No 'Property Class' column found.")
-        selected_property_classes = []
+    property_types = sorted(data['Property Class'].dropna().unique())
+    selected_property_types = st.sidebar.multiselect("Select Property Types", property_types)
 
-    if 'Building Type' in data.columns:
-        building_types = data['Building Type'].unique()
-        selected_building_types = st.sidebar.multiselect("Select Building Types", building_types, default=building_types)
-    else:
-        st.sidebar.write("No 'Building Type' column found.")
-        selected_building_types = []
+    # Building Type
+    building_types = sorted(data['Building Type'].dropna().unique())
+    selected_building_types = st.sidebar.multiselect("Select Building Types", building_types)
 
     # Transaction Type
-    st.sidebar.subheader("Transaction Type")
-    if 'Transaction Type' in data.columns:
-        transaction_types = data['Transaction Type'].unique()
-        selected_transaction_types = st.sidebar.multiselect("Select Transaction Types", transaction_types, default=transaction_types)
-    else:
-        st.sidebar.write("No 'Transaction Type' column found.")
-        selected_transaction_types = []
+    transaction_types = ['Listing Firm', 'Buyer Firm', 'Dual Representation']
+    selected_transaction_type = st.sidebar.selectbox("Select Transaction Type", transaction_types)
 
     # Price Range
-    st.sidebar.subheader("Price Range")
-    min_price = int(data['Sold Price'].min())
     max_price = int(data['Sold Price'].max())
-    price_range = st.sidebar.slider("Select Price Range", min_price, max_price, (min_price, max_price))
+    price_range = st.sidebar.text_input("Price Range (format: min-max)", f"0-{max_price}")
+    try:
+        min_price, max_price = map(int, price_range.split('-'))
+    except:
+        min_price, max_price = 0, data['Sold Price'].max()
 
     # Year Built
-    st.sidebar.subheader("Year Built")
-    min_year = int(data['Year Built'].min())
-    max_year = int(data['Year Built'].max())
-    year_range = st.sidebar.slider("Select Year Range", min_year, max_year, (min_year, max_year))
+    years = sorted(data['Year Built'].dropna().unique())
+    selected_years = st.sidebar.multiselect("Select Years Built", years)
 
     # Days on Market (DOM)
-    st.sidebar.subheader("Days on Market (DOM)")
-    min_dom = int(data['DOM'].min())
-    max_dom = int(data['DOM'].max())
-    dom_range = st.sidebar.slider("Select DOM Range", min_dom, max_dom, (min_dom, max_dom))
+    max_dom = int(data['Days On Market'].max())
+    dom_range = st.sidebar.slider("Days on Market", 0, max_dom, (0, max_dom))
 
     # Apply filters
-    filtered_data = filter_data(
-        data,
-        start_date,
-        end_date,
-        selected_agents,
-        top_bottom_agents,
-        selected_communities,
-        selected_property_classes,
-        selected_building_types,
-        selected_transaction_types,
-        price_range,
-        year_range,
-        dom_range
+    mask = (
+        (data['Sold Date'].dt.date >= start_date) &
+        (data['Sold Date'].dt.date <= end_date) &
+        (data['Sold Price'].between(min_price, max_price)) &
+        (data['Days On Market'].between(dom_range[0], dom_range[1])) &
+        (data['Year Built'].isin(selected_years) if selected_years else True) &
+        (data['Property Class'].isin(selected_property_types) if selected_property_types else True) &
+        (data['Building Type'].isin(selected_building_types) if selected_building_types else True) &
+        (data['Community'].isin(selected_communities) if selected_communities else True)
     )
 
-    # Time-Based Analysis
-    st.subheader("Time-Based Analysis")
+    if selected_agents:
+        mask &= (
+            (data['Listing Agent 1 - Agent Name'].isin(selected_agents)) |
+            (data['Buyer Agent 1 - Agent Name'].isin(selected_agents))
+        )
+
+    if selected_transaction_type == 'Listing Firm':
+        mask &= data['Listing Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Buyer Firm':
+        mask &= data['Buyer Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Dual Representation':
+        mask &= (data['Listing Firm 1 - Office Name'] == data['Buyer Firm 1 - Office Name'])
+
+    filtered_data = data[mask]
+
+    # KPI Metrics
+    col1, col2, col3, col4 = st.columns(4)
+
+    with col1:
+        st.metric("Total Listings Sold", len(filtered_data))
+
+    with col2:
+        avg_dom = filtered_data['Days On Market'].mean()
+        st.metric("Average DOM", f"{avg_dom:.1f} days")
+
+    with col3:
+        avg_price = filtered_data['Sold Price'].mean()
+        st.metric("Average Sold Price", f"${avg_price:,.2f}")
+
+    with col4:
+        avg_price_sqft = (filtered_data['Sold Price'] / filtered_data['Total Flr Area (SF)']).mean()
+        st.metric("Average Price/SqFt", f"${avg_price_sqft:.2f}")
+
+    # Price Trends Chart
+    st.subheader("Price Trends Over Time")
+    monthly_avg = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
+        'List Price': 'mean',
+        'Sold Price': 'mean'
+    }).reset_index()
+    monthly_avg['Sold Date'] = monthly_avg['Sold Date'].dt.to_timestamp()
+
+    fig_price = go.Figure()
+    fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['List Price'],
+                                   name='List Price', line=dict(color='blue')))
+    fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['Sold Price'],
+                                   name='Sold Price', line=dict(color='green')))
+    fig_price.update_layout(title='Average List vs Sold Prices',
+                            xaxis_title='Date',
+                            yaxis_title='Price ($)')
+    st.plotly_chart(fig_price)
 
     # Sold Listings Over Time
     st.subheader("Sold Listings Over Time")
 
-    # Group by month
-    monthly_sales = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
-        'Sold Price': 'count'
+    # Group by style and month
+    monthly_sales_by_style = filtered_data.groupby([filtered_data['Sold Date'].dt.to_period('M'), 'Style']).agg({
+        'Sold Price': ['sum', 'count', 'mean']
     }).reset_index()
 
     # Flatten the multi-level columns
-    monthly_sales.columns = ['Sold Date', 'Total Sales #']
-    monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
+    monthly_sales_by_style.columns = ['Sold Date', 'Style', 'Total Gross Sales', 'Total Sales #', 'Avg Sales Price']
+    monthly_sales_by_style['Sold Date'] = monthly_sales_by_style['Sold Date'].dt.to_timestamp()
+
+    # Calculate total sales for all styles
+    total_sales = monthly_sales_by_style.groupby('Sold Date').agg({
+        'Total Gross Sales': 'sum',
+        'Total Sales #': 'sum',
+        'Avg Sales Price': 'mean'
+    }).reset_index()
 
     # Create the figure
     fig_sales = go.Figure()
 
-    # Add a line for total sales
+    # Add a thicker line for total sales
     fig_sales.add_trace(go.Scatter(
-        x=monthly_sales['Sold Date'],
-        y=monthly_sales['Total Sales #'],
+        x=total_sales['Sold Date'],
+        y=total_sales['Total Sales #'],
         name='Total Sales',
-        line=dict(color='blue', width=2),
+        line=dict(color='red', width=6),
         hovertemplate=(
-            'Date: %{x}' +
-            'Total Sales #: %{y}'
-        )
+            'Date: %{x}<br>' +
+            'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+            'Total Sales #: %{y}<br>' +
+            'Avg Sales Price: $%{customdata[1]:,.2f}<br>'
+        ),
+        customdata=total_sales[['Total Gross Sales', 'Avg Sales Price']]
     ))
+
+    # Add lines for each style
+    styles = sorted(monthly_sales_by_style['Style'].unique())
+    colors = ['blue', 'green', 'orange', 'purple', 'yellow', 'white', 'pink', 'gray', 'brown', 'cyan']
+
+    for i, style in enumerate(styles):
+        style_sales = monthly_sales_by_style[monthly_sales_by_style['Style'] == style]
+        fig_sales.add_trace(go.Scatter(
+            x=style_sales['Sold Date'],
+            y=style_sales['Total Sales #'],
+            name=style,
+            line=dict(color=colors[i % len(colors)], width=2),
+            hovertemplate=(
+                'Date: %{x}<br>' +
+                'Style: %{text}<br>' +
+                'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+                'Total Sales #: %{y}<br>' +
+                'Avg Sales Price: $%{customdata[1]:,.2f}<br>'
+            ),
+            customdata=style_sales[['Total Gross Sales', 'Avg Sales Price']],
+            text=style
+        ))
 
     # Update layout
     fig_sales.update_layout(
-        title='Number of Properties Sold per Month',
+        title='Number of Properties Sold per Month by Style',
         xaxis_title='Date',
-        yaxis_title='Number of Sales'
+        yaxis_title='Number of Sales',
+        legend_title='Style'
     )
 
     # Display the chart
     st.plotly_chart(fig_sales)
 
-    # Average Sold Price Over Time
-    st.subheader("Average Sold Price Over Time")
+    # Days on Market Analysis
+    st.subheader("Days on Market vs Sold Price Distribution")
 
-    # Group by month
-    monthly_avg_price = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
-        'Sold Price': 'mean'
-    }).reset_index()
-
-    # Flatten the multi-level columns
-    monthly_avg_price.columns = ['Sold Date', 'Average Sold Price']
-    monthly_avg_price['Sold Date'] = monthly_avg_price['Sold Date'].dt.to_timestamp()
-
-    # Create the figure
-    fig_avg_price = go.Figure()
-
-    # Add a line for average sold price
-    fig_avg_price.add_trace(go.Scatter(
-        x=monthly_avg_price['Sold Date'],
-        y=monthly_avg_price['Average Sold Price'],
-        name='Average Sold Price',
-        line=dict(color='green', width=2),
-        hovertemplate=(
-            'Date: %{x}' +
-            'Average Sold Price: $%{y:,.2f}'
-        )
-    ))
-
-    # Update layout
-    fig_avg_price.update_layout(
-        title='Average Sold Price Over Time',
-        xaxis_title='Date',
-        yaxis_title='Average Sold Price ($)'
+    # Create a 2D histogram (heatmap)
+    fig_dom_price = px.density_heatmap(
+        filtered_data,
+        x='Days On Market',
+        y='Sold Price',
+        nbinsx=50,
+        nbinsy=50,
+        title='Distribution of Days on Market vs Sold Price',
+        color_continuous_scale='Viridis'
     )
 
-    # Display the chart
-    st.plotly_chart(fig_avg_price)
+    fig_dom_price.update_layout(
+        xaxis_title='Days on Market',
+        yaxis_title='Sold Price ($)',
+        coloraxis_colorbar_title='Count'
+    )
 
-    # Visualization: Distribution of Property Types in Noralta
-    if 'Property Class' in filtered_data.columns:
-        property_type_counts = filtered_data['Property Class'].value_counts()
-        fig = px.pie(
-            values=property_type_counts.values,
-            names=property_type_counts.index,
-            title="Distribution of Property Class in Noralta",
+    st.plotly_chart(fig_dom_price)
+
+    # Create community-based metrics
+    community_metrics = filtered_data.groupby('Community').agg({
+        'Sold Price': ['count', 'mean', 'sum'],
+        'Days On Market': 'mean'
+    }).reset_index()
+
+    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM']
+
+    # Calculate the top selling firm for each community
+    top_selling_firms = filtered_data.groupby('Community').apply(
+        lambda x: x['Listing Firm 1 - Office Name'].value_counts().idxmax()
+    ).reset_index(name='Top_Selling_Firm')
+
+    # Merge the top selling firm information into the community metrics
+    community_metrics = community_metrics.merge(top_selling_firms, on='Community', how='left')
+
+    # Add a detailed community metrics table
+    st.subheader("Community Metrics Detail")
+    # Format the metrics for better readability
+    community_metrics['Average_Price'] = community_metrics['Average_Price'].map('${:,.2f}'.format)
+    community_metrics['Total_Volume'] = community_metrics['Total_Volume'].map('${:,.2f}'.format)
+    community_metrics['Average_DOM'] = community_metrics['Average_DOM'].map('{:.1f} days'.format)
+
+    # Display the table
+    st.dataframe(
+        community_metrics.sort_values('Number_of_Sales', ascending=False),
+        height=400
+    )
+
+    # Check if community_metrics is not empty before filtering
+    if not community_metrics.empty:
+        # Filter to the top 20 communities by number of sales
+        top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
+
+        # Sort the top_20_communities by Average_DOM
+        top_20_communities = top_20_communities.sort_values('Average_DOM')
+
+        # Create a heatmap using go.Figure
+        fig_heatmap = go.Figure(data=go.Heatmap(
+            x=top_20_communities['Community'],  # x-axis: Communities
+            y=top_20_communities['Average_DOM'],  # y-axis: Average Days on Market
+            z=top_20_communities['Number_of_Sales'],  # z-axis: Number of Sales
+            colorscale='Viridis',  # Color scale
+            hoverongaps=False,
+            hovertemplate=(
+                "<b>Community: %{x}</b><br>" +
+                "Number of Sales: %{z}<br>" +
+                "Top Selling Firm: %{customdata[2]}<extra></extra>"
+            ),
+            customdata=np.array([
+                top_20_communities['Average_Price'],
+                top_20_communities['Total_Volume'],
+                top_20_communities['Top_Selling_Firm']
+            ]).T  # Transpose to match the shape
+        ))
+
+        # Update layout
+        fig_heatmap.update_layout(
+            title='Heatmap of Sold Properties by Top 20 Communities',
+            xaxis_title='Community',
+            yaxis_title='Average Days on Market',
+            xaxis=dict(tickangle=-45),
+            coloraxis_colorbar_title='Total Sales'
         )
-        st.plotly_chart(fig, use_container_width=True)
+
+        # Display the heatmap
+        st.plotly_chart(fig_heatmap)
     else:
-        st.write("No 'Property Class' column found for visualization.")
+        st.warning("No data available for the selected filters.")
 
 if __name__ == "__main__":
     main()
