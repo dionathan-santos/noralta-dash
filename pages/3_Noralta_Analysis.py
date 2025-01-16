@@ -145,33 +145,51 @@ def main():
 
 
 
-    # KPIs
-    st.subheader("KPIs")
 
-    col1, col2 = st.columns(2)
+# Combine deals from both Listing and Buyer sides
+listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
-    with col1:
-        st.metric("Total Listings Closed by Noralta", len(noralta_data))
+# Combine deals from both sides
+all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - Agent Name').sum().reset_index()
 
-    with col2:
-        avg_deals_per_agent = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
-        st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
+# Calculate total deals and ranks
+all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
+all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
 
-    st.write("")  # Add a blank line for better readability
+# KPIs
+st.subheader("KPIs")
 
-    col3, col4 = st.columns(2)
+col1, col2 = st.columns(2)
 
-    with col3:
-        top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().nlargest(5).reset_index(name='Total Deals')
-        top_agents['Rank'] = top_agents.index + 1
-        st.write("Top 5 Performing Agents (Total Deals):")
-        st.table(top_agents)
+with col1:
+    st.metric("Total Listings Closed by Noralta", len(noralta_data))
 
-    with col4:
-        bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').size().nsmallest(5).reset_index(name='Total Deals')
-        bottom_agents['Rank'] = bottom_agents.index + 1
-        st.write("Bottom 5 Performing Agents (Total Deals):")
-        st.table(bottom_agents)
+with col2:
+    avg_deals_per_agent = all_deals['Total Deals'].mean()
+    st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
+
+st.write("")  # Add a blank line for better readability
+
+col3, col4 = st.columns(2)
+
+with col3:
+    top_agents = all_deals.nlargest(5, 'Total Deals')
+    st.write("Top 5 Performing Agents (Total Deals):")
+    st.table(top_agents)
+
+with col4:
+    bottom_agents = all_deals.nsmallest(5, 'Total Deals')
+    st.write("Bottom 5 Performing Agents (Total Deals):")
+    st.table(bottom_agents)
+
+# Download button for complete table
+st.download_button(
+    label="Download Complete Agent Data",
+    data=all_deals.to_csv(index=False),
+    file_name='agent_data.csv',
+    mime='text/csv'
+)
 
 
 
