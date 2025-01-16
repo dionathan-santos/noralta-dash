@@ -39,7 +39,7 @@ def get_mongodb_data(mongodb_uri, database_name, collection_name):
             st.error("No data retrieved from MongoDB")
         
         return df
-        
+    
     except Exception as e:
         st.error(f"Error connecting to MongoDB: {str(e)}")
         return pd.DataFrame()
@@ -71,17 +71,17 @@ def main():
     default_end = datetime(2024, 12, 31)
 
     start_date = st.sidebar.date_input("Start Date",
-                                    value=default_start,
-                                    min_value=min_date,
-                                    max_value=max_date)
+    value=default_start,
+    min_value=min_date,
+    max_value=max_date)
     end_date = st.sidebar.date_input("End Date",
-                                value=default_end,
-                                min_value=min_date,
-                                max_value=max_date)
+    value=default_end,
+    min_value=min_date,
+    max_value=max_date)
 
     # Firm Selection
     all_firms = sorted(set(listings_data['Listing Firm 1 - Office Name'].dropna().unique()) |
-                      set(listings_data['Buyer Firm 1 - Office Name'].dropna().unique()))
+    set(listings_data['Buyer Firm 1 - Office Name'].dropna().unique()))
     selected_firms = st.sidebar.multiselect("Select Firms", all_firms)
 
     # Area/City
@@ -185,14 +185,13 @@ def main():
 
     fig_price = go.Figure()
     fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['List Price'],
-                                 name='List Price', line=dict(color='blue')))
+                                   name='List Price', line=dict(color='blue')))
     fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['Sold Price'],
-                                 name='Sold Price', line=dict(color='green')))
+                                   name='Sold Price', line=dict(color='green')))
     fig_price.update_layout(title='Average List vs Sold Prices',
-                          xaxis_title='Date',
-                          yaxis_title='Price ($)')
+                            xaxis_title='Date',
+                            yaxis_title='Price ($)')
     st.plotly_chart(fig_price)
-
 
     # Sold Listings Over Time
     st.subheader("Sold Listings Over Time")
@@ -223,9 +222,12 @@ def main():
         name='Total Sales',
         line=dict(color='red', width=6),
         hovertemplate=(
-            'Date: %{x}<br>' +
-            'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
-            'Total Sales #: %{y}<br>' +
+            'Date: %{x}
+' +
+            'Total Gross Sales: $%{customdata[0]:,.2f}
+' +
+            'Total Sales #: %{y}
+' +
             'Avg Sales Price: $%{customdata[1]:,.2f}'
         ),
         customdata=total_sales[['Total Gross Sales', 'Avg Sales Price']]
@@ -243,10 +245,14 @@ def main():
             name=property_type,
             line=dict(color=colors[i], width=2),
             hovertemplate=(
-                'Date: %{x}<br>' +
-                'Property Type: %{text}<br>' +
-                'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
-                'Total Sales #: %{y}<br>' +
+                'Date: %{x}
+' +
+                'Property Type: %{text}
+' +
+                'Total Gross Sales: $%{customdata[0]:,.2f}
+' +
+                'Total Sales #: %{y}
+' +
                 'Avg Sales Price: $%{customdata[1]:,.2f}'
             ),
             customdata=property_sales[['Total Gross Sales', 'Avg Sales Price']],
@@ -263,7 +269,6 @@ def main():
 
     # Display the chart
     st.plotly_chart(fig_sales)
-
 
     # Days on Market Analysis
     st.subheader("Days on Market vs Sold Price Distribution")
@@ -287,7 +292,6 @@ def main():
 
     st.plotly_chart(fig_dom_price)
 
-    
     # Create community-based metrics
     community_metrics = filtered_data.groupby('Community').agg({
         'Sold Price': ['count', 'mean', 'sum'],
@@ -295,6 +299,14 @@ def main():
     }).reset_index()
 
     community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM']
+
+    # Calculate the top selling firm for each community
+    top_selling_firms = filtered_data.groupby('Community').apply(
+        lambda x: x['Listing Firm 1 - Office Name'].value_counts().idxmax()
+    ).reset_index(name='Top_Selling_Firm')
+
+    # Merge the top selling firm information into the community metrics
+    community_metrics = community_metrics.merge(top_selling_firms, on='Community', how='left')
 
     # Add a detailed community metrics table
     st.subheader("Community Metrics Detail")
@@ -308,12 +320,6 @@ def main():
         community_metrics.sort_values('Number_of_Sales', ascending=False),
         height=400
     )
-
-
-
-
-
-
 
     # Filter to the top 20 communities by number of sales
     top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
