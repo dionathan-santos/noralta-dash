@@ -5,11 +5,48 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import locale
 import seaborn as sns
+from pymongo import MongoClient
+
 
 def main():
     st.title("Real Estate Market Analysis Dashboard")
 
-    # Connect to MongoDB
+def get_mongodb_data(mongodb_uri, database_name, collection_name):
+    """
+    Retrieve data from MongoDB and return as a pandas DataFrame
+    """
+    try:
+        # Create a MongoDB client
+        client = MongoClient(mongodb_uri)
+        
+        # Get the database
+        db = client[database_name]
+        
+        # Get the collection
+        collection = db[collection_name]
+        
+        # Retrieve all documents from the collection
+        data = list(collection.find({}, {'_id': 0}))  # Exclude MongoDB _id field
+        
+        # Convert to DataFrame
+        df = pd.DataFrame(data)
+        
+        # Close the connection
+        client.close()
+        
+        if df.empty:
+            st.error("No data retrieved from MongoDB")
+        
+        return df
+        
+    except Exception as e:
+        st.error(f"Error connecting to MongoDB: {str(e)}")
+        return pd.DataFrame()
+
+def main():
+    st.title("Real Estate Market Analysis Dashboard")
+
+    # Your existing MongoDB connection details
     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     database_name = "real_estate"
 
