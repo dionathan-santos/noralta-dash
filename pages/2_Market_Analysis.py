@@ -3,9 +3,6 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime, timedelta
-import folium
-from streamlit_folium import folium_static
-from utils.data_utils import get_mongodb_data
 import locale
 import seaborn as sns
 
