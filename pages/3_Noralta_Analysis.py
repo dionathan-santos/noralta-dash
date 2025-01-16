@@ -153,6 +153,9 @@ def main():
     # Combine deals from both sides
     all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - Agent Name').sum().reset_index()
 
+    # Rename the column
+    all_deals = all_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
+
     # Calculate total deals and ranks
     all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
     all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
@@ -172,21 +175,21 @@ def main():
     st.write("")  # Add a blank line for better readability
 
     col3, col4 = st.columns(2)
-    bottom_agents = all_deals.sort_values(by='Total Deals').head(5)
+
     with col3:
-        top_agents = all_deals.nlargest(5, 'Total Deals')
+        top_agents = all_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
         st.write("Top 5 Performing Agents (Total Deals):")
         st.table(top_agents)
 
     with col4:
-        bottom_agents = all_deals.nsmallest(5, 'Total Deals')
+        bottom_agents = all_deals.nsmallest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
         st.write("Bottom 5 Performing Agents (Total Deals):")
         st.table(bottom_agents)
 
     # Download button for complete table
     st.download_button(
         label="Download Complete Agent Data",
-        data=all_deals.to_csv(index=False),
+        data=all_deals[['Agent Name', 'Total Deals', 'Rank']].to_csv(index=False),
         file_name='agent_data.csv',
         mime='text/csv'
     )
