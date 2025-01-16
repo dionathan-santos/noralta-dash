@@ -157,39 +157,39 @@ all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - A
 all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
 all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
 
-# KPIs
-st.subheader("KPIs")
+    # KPIs
+    st.subheader("KPIs")
 
-col1, col2 = st.columns(2)
+    col1, col2 = st.columns(2)
 
-with col1:
-    st.metric("Total Listings Closed by Noralta", len(noralta_data))
+    with col1:
+        st.metric("Total Listings Closed by Noralta", len(noralta_data))
 
-with col2:
-    avg_deals_per_agent = all_deals['Total Deals'].mean()
-    st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
+    with col2:
+        avg_deals_per_agent = all_deals['Total Deals'].mean()
+        st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
 
-st.write("")  # Add a blank line for better readability
+    st.write("")  # Add a blank line for better readability
 
-col3, col4 = st.columns(2)
+    col3, col4 = st.columns(2)
+    bottom_agents = all_deals.sort_values(by='Total Deals').head(5)
+    with col3:
+        top_agents = all_deals.nlargest(5, 'Total Deals')
+        st.write("Top 5 Performing Agents (Total Deals):")
+        st.table(top_agents)
 
-with col3:
-    top_agents = all_deals.nlargest(5, 'Total Deals')
-    st.write("Top 5 Performing Agents (Total Deals):")
-    st.table(top_agents)
+    with col4:
+        bottom_agents = all_deals.nsmallest(5, 'Total Deals')
+        st.write("Bottom 5 Performing Agents (Total Deals):")
+        st.table(bottom_agents)
 
-with col4:
-    bottom_agents = all_deals.nsmallest(5, 'Total Deals')
-    st.write("Bottom 5 Performing Agents (Total Deals):")
-    st.table(bottom_agents)
-
-# Download button for complete table
-st.download_button(
-    label="Download Complete Agent Data",
-    data=all_deals.to_csv(index=False),
-    file_name='agent_data.csv',
-    mime='text/csv'
-)
+    # Download button for complete table
+    st.download_button(
+        label="Download Complete Agent Data",
+        data=all_deals.to_csv(index=False),
+        file_name='agent_data.csv',
+        mime='text/csv'
+    )
 
 
 
