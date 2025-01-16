@@ -322,42 +322,75 @@ def main():
 
 
 
-# Filter to the top 20 communities by number of sales
-top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
+    # Create community-based metrics
+    community_metrics = filtered_data.groupby('Community').agg({
+        'Sold Price': ['count', 'mean', 'sum'],
+        'Days On Market': 'mean'
+    }).reset_index()
 
-# Create a heatmap using go.Figure
-fig_heatmap = go.Figure(data=go.Heatmap(
-    x=top_20_communities['Community'],  # x-axis: Communities
-    y=top_20_communities['Average_DOM'],  # y-axis: Average Days on Market
-    z=top_20_communities['Number_of_Sales'],  # z-axis: Number of Sales
-    colorscale='Viridis',  # Color scale
-    hoverongaps=False,
-    hovertemplate=(
-        "<b>Community: %{x}</b><br>" +
-        "Average Days on Market: %{y:.1f} days<br>" +
-        "Number of Sales: %{z}<br>" +
-        "Average Sales Price: $%{customdata[0]:,.2f}<br>" +
-        "Total Volume: $%{customdata[1]:,.2f}<br>" +
-        "Top Selling Firm: %{customdata[2]}<extra></extra>"
-    ),
-    customdata=np.array([
-        top_20_communities['Average_Price'],
-        top_20_communities['Total_Volume'],
-        top_20_communities['Top_Selling_Firm']
-    ]).T  # Transpose to match the shape
-))
+    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM']
 
-# Update layout
-fig_heatmap.update_layout(
-    title='Heatmap of Sold Properties by Top 20 Communities',
-    xaxis_title='Community',
-    yaxis_title='Average Days on Market',
-    xaxis=dict(tickangle=-45),
-    coloraxis_colorbar_title='Number of Sales'
-)
+    # Calculate the top selling firm for each community
+    top_selling_firms = filtered_data.groupby('Community').apply(
+        lambda x: x['Listing Firm 1 - Office Name'].value_counts().idxmax()
+    ).reset_index(name='Top_Selling_Firm')
 
-# Display the heatmap
-st.plotly_chart(fig_heatmap)
+    # Merge the top selling firm information into the community metrics
+    community_metrics = community_metrics.merge(top_selling_firms, on='Community', how='left')
+
+    # Add a detailed community metrics table
+    st.subheader("Community Metrics Detail")
+    # Format the metrics for better readability
+    community_metrics['Average_Price'] = community_metrics['Average_Price'].map('${:,.2f}'.format)
+    community_metrics['Total_Volume'] = community_metrics['Total_Volume'].map('${:,.2f}'.format)
+    community_metrics['Average_DOM'] = community_metrics['Average_DOM'].map('{:.1f} days'.format)
+
+    # Display the table
+    st.dataframe(
+        community_metrics.sort_values('Number_of_Sales', ascending=False),
+        height=400
+    )
+
+    # Check if community_metrics is not empty before filtering
+    if not community_metrics.empty:
+        # Filter to the top 20 communities by number of sales
+        top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
+
+        # Create a heatmap using go.Figure
+        fig_heatmap = go.Figure(data=go.Heatmap(
+            x=top_20_communities['Community'],  # x-axis: Communities
+            y=top_20_communities['Average_DOM'],  # y-axis: Average Days on Market
+            z=top_20_communities['Number_of_Sales'],  # z-axis: Number of Sales
+            colorscale='Viridis',  # Color scale
+            hoverongaps=False,
+            hovertemplate=(
+                "<b>Community: %{x}</b>" +
+                "Average Days on Market: %{y:.1f} days" +
+                "Number of Sales: %{z}" +
+                "Average Sales Price: $%{customdata[0]:,.2f}" +
+                "Total Volume: $%{customdata[1]:,.2f}" +
+                "Top Selling Firm: %{customdata[2]}<extra></extra>"
+            ),
+            customdata=np.array([
+                top_20_communities['Average_Price'],
+                top_20_communities['Total_Volume'],
+                top_20_communities['Top_Selling_Firm']
+            ]).T  # Transpose to match the shape
+        ))
+
+        # Update layout
+        fig_heatmap.update_layout(
+            title='Heatmap of Sold Properties by Top 20 Communities',
+            xaxis_title='Community',
+            yaxis_title='Average Days on Market',
+            xaxis=dict(tickangle=-45),
+            coloraxis_colorbar_title='Number of Sales'
+        )
+
+        # Display the heatmap
+        st.plotly_chart(fig_heatmap)
+    else:
+        st.warning("No data available for the selected filters.")
 
 
 if __name__ == "__main__":
