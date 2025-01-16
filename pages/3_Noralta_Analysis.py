@@ -146,76 +146,53 @@ def main():
 
 
 
-    # Calculate deals from both Listing and Buyer sides before applying other filters
-    listing_deals = data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-    buyer_deals = data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+# Filter data for Royal LePage Noralta Real Estate
+noralta_data = data[
+    (data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+    (data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+]
 
-    # Rename columns for consistency
-    listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
-    buyer_deals = buyer_deals.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+# Apply date range filter
+noralta_data = noralta_data[
+    (noralta_data['Sold Date'].dt.date >= start_date) & (noralta_data['Sold Date'].dt.date <= end_date)
+]
 
-    # Calculate total deals and ranks
-    listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
-    buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+# Calculate deals from both Listing and Buyer sides
+listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
-    # Apply date range filter to data
-    data = data[(data['Sold Date'].dt.date >= start_date) & (data['Sold Date'].dt.date <= end_date)]
+# Rename columns for consistency
+listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
+buyer_deals = buyer_deals.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
 
-    # Apply other filters
-    mask = (
-        (data['Sold Price'].between(min_price, max_price)) &
-        (data['Days On Market'].between(dom_range[0], dom_range[1])) &
-        (data['Year Built'].isin(selected_years) if selected_years else True) &
-        (data['Property Class'].isin(selected_property_types) if selected_property_types else True) &
-        (data['Building Type'].isin(selected_building_types) if selected_building_types else True) &
-        (data['Community'].isin(selected_communities) if selected_communities else True)
-    )
+# Calculate total deals and ranks
+listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
 
-    if selected_agents:
-        mask &= (
-            (data['Listing Agent 1 - Agent Name'].isin(selected_agents)) |
-            (data['Buyer Agent 1 - Agent Name'].isin(selected_agents))
-        )
+# Calculate top 5 agents for listings and buyers
+top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
+top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
 
-    if selected_transaction_type == 'Listing Firm':
-        mask &= data['Listing Firm 1 - Office Name'].notna()
-    elif selected_transaction_type == 'Buyer Firm':
-        mask &= data['Buyer Firm 1 - Office Name'].notna()
-    elif selected_transaction_type == 'Dual Representation':
-        mask &= (data['Listing Firm 1 - Office Name'] == data['Buyer Firm 1 - Office Name'])
+# Display tables
+st.write("")  # Add a blank line for better readability
+col1, col2 = st.columns(2)
 
-    filtered_data = data[mask]
+with col1:
+    st.write("Top 5 Performing Agents (Listings):")
+    st.table(top_listings_agents)
 
-    # Filter for Noralta
-    noralta_data = filtered_data[
-        (filtered_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
-        (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
-    ]
+with col2:
+    st.write("Top 5 Performing Agents (Buyers):")
+    st.table(top_buyers_agents)
 
-    # Calculate top 5 agents for listings and buyers
-    top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
-    top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
-
-    # Display tables
-    st.write("")  # Add a blank line for better readability
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.write("Top 5 Performing Agents (Listings):")
-        st.table(top_listings_agents)
-
-    with col2:
-        st.write("Top 5 Performing Agents (Buyers):")
-        st.table(top_buyers_agents)
-
-    # Download button for combined table
-    combined_agents = pd.concat([listing_deals, buyer_deals]).groupby('Agent Name').sum().reset_index()
-    st.download_button(
-        label="Download Combined Agent Data",
-        data=combined_agents.to_csv(index=False),
-        file_name='combined_agent_data.csv',
-        mime='text/csv'
-    )
+# Download button for combined table
+combined_agents = pd.concat([listing_deals, buyer_deals]).groupby('Agent Name').sum().reset_index()
+st.download_button(
+    label="Download Combined Agent Data",
+    data=combined_agents.to_csv(index=False),
+    file_name='combined_agent_data.csv',
+    mime='text/csv'
+)
 
 
 
