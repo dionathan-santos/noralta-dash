@@ -78,7 +78,6 @@ def main():
     selected_agents = st.sidebar.multiselect("Select Agents", all_agents)
 
     # Area/City
-    st.sidebar.subheader("Area/City")
     cities = sorted(data['Area/City'].dropna().unique())
     selected_cities = st.sidebar.multiselect("Select Cities", cities)
 
@@ -124,7 +123,7 @@ def main():
         (data['Property Class'].isin(selected_property_types) if selected_property_types else True) &
         (data['Building Type'].isin(selected_building_types) if selected_building_types else True) &
         (data['Community'].isin(selected_communities) if selected_communities else True) &
-        (data['Area/City'].isin(selected_cities) if selected_cities else True)
+        (data['Community'].isin(selected_communities) if selected_communities else True) &
 )
 
     if selected_agents:
