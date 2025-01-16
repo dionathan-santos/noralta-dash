@@ -142,17 +142,7 @@ def main():
         (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
     ]
 
-
-
-
-
     # Filter data for Royal LePage Noralta Real Estate
-    noralta_data = data[
-        (data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
-        (data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
-    ]
-
-    # Apply date range filter
     noralta_data_date_filtered = noralta_data[
         (noralta_data['Sold Date'].dt.date >= start_date) & (noralta_data['Sold Date'].dt.date <= end_date)
     ]
@@ -194,29 +184,6 @@ def main():
         mime='text/csv'
     )
 
-
-
-
-
-
-
-
-
-
-    # Combine deals from both Listing and Buyer sides
-    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-
-    # Combine deals from both sides
-    all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - Agent Name').sum().reset_index()
-
-    # Rename the column
-    all_deals = all_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
-
-    # Calculate total deals and ranks
-    all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
-    all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
-
     # KPIs
     st.subheader("KPIs")
 
@@ -226,18 +193,12 @@ def main():
         st.metric("Total Listings Closed by Noralta", len(noralta_data))
 
     with col2:
-        avg_deals_per_agent = all_deals['Total Deals'].mean()
+        avg_deals_per_agent = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
         st.metric("Average Number of Closed Deals per Agent", f"{avg_deals_per_agent:.1f}")
 
     st.write("")  # Add a blank line for better readability
 
     col3, col4 = st.columns(2)
-
-
-
-
-
-
 
     # Community Dominance
     st.subheader("Community Dominance")
