@@ -64,13 +64,70 @@ def main():
 
     # Filters
     st.sidebar.header("Filters")
+
+    # Date Range
+    st.sidebar.subheader("Date Range")
     min_date = data['Sold Date'].min().date()
     max_date = data['Sold Date'].max().date()
     start_date = st.sidebar.date_input("Start Date", min_date, min_date, max_date)
     end_date = st.sidebar.date_input("End Date", max_date, min_date, max_date)
-    area_city = st.sidebar.selectbox("Select Area/City", ["Noralta"] if "Noralta" in data['Area/City'].unique() else [""])
-    
-    filtered_data = filter_data(data, start_date, end_date, area_city)
+
+    # Agent-Specific
+    st.sidebar.subheader("Agent-Specific")
+    agents = data['Agent Name'].unique()
+    selected_agents = st.sidebar.multiselect("Select Agents", agents, default=agents)
+    top_bottom_agents = st.sidebar.selectbox("Top/Bottom Performing Agents", ["All", "Top 10", "Bottom 10"])
+
+    # Community
+    st.sidebar.subheader("Community")
+    communities = data['Community'].unique()
+    selected_communities = st.sidebar.multiselect("Select Communities", communities, default=communities)
+
+    # Property Type
+    st.sidebar.subheader("Property Type")
+    property_classes = data['Property Class'].unique()
+    selected_property_classes = st.sidebar.multiselect("Select Property Classes", property_classes, default=property_classes)
+    building_types = data['Building Type'].unique()
+    selected_building_types = st.sidebar.multiselect("Select Building Types", building_types, default=building_types)
+
+    # Transaction Type
+    st.sidebar.subheader("Transaction Type")
+    transaction_types = data['Transaction Type'].unique()
+    selected_transaction_types = st.sidebar.multiselect("Select Transaction Types", transaction_types, default=transaction_types)
+
+    # Price Range
+    st.sidebar.subheader("Price Range")
+    min_price = int(data['Sold Price'].min())
+    max_price = int(data['Sold Price'].max())
+    price_range = st.sidebar.slider("Select Price Range", min_price, max_price, (min_price, max_price))
+
+    # Year Built
+    st.sidebar.subheader("Year Built")
+    min_year = int(data['Year Built'].min())
+    max_year = int(data['Year Built'].max())
+    year_range = st.sidebar.slider("Select Year Range", min_year, max_year, (min_year, max_year))
+
+    # Days on Market (DOM)
+    st.sidebar.subheader("Days on Market (DOM)")
+    min_dom = int(data['DOM'].min())
+    max_dom = int(data['DOM'].max())
+    dom_range = st.sidebar.slider("Select DOM Range", min_dom, max_dom, (min_dom, max_dom))
+
+    # Apply filters
+    filtered_data = filter_data(
+        data,
+        start_date,
+        end_date,
+        selected_agents,
+        top_bottom_agents,
+        selected_communities,
+        selected_property_classes,
+        selected_building_types,
+        selected_transaction_types,
+        price_range,
+        year_range,
+        dom_range
+    )
 
     # Time-Based Analysis
     st.subheader("Time-Based Analysis")
