@@ -220,7 +220,7 @@ def main():
         x=total_sales['Sold Date'],
         y=total_sales['Total Sales #'],
         name='Total Sales',
-        line=dict(color='black', width=4),
+        line=dict(color='red', width=6),
         hovertemplate=(
             'Date: %{x}<br>' +
             'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
@@ -231,8 +231,8 @@ def main():
     ))
 
     # Add lines for each property type
-    property_types = ['Detached Single Family', 'Condo', 'Townhouse', 'Semi-Detached']
-    colors = ['blue', 'green', 'orange', 'purple']
+    property_types = ['Detached Single Family', 'Lowrise Apartment', 'Apartment High Rise', 'Condo', 'Townhouse', 'Residential Attached']
+    colors = ['blue', 'green', 'orange', 'purple', 'yellow', 'white']
 
     for i, property_type in enumerate(property_types):
         property_sales = monthly_sales_by_type[monthly_sales_by_type['Property Class'] == property_type]
