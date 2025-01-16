@@ -146,53 +146,53 @@ def main():
 
 
 
-# Filter data for Royal LePage Noralta Real Estate
-noralta_data = data[
-    (data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
-    (data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
-]
+    # Filter data for Royal LePage Noralta Real Estate
+    noralta_data = data[
+        (data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+        (data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+    ]
 
-# Apply date range filter
-noralta_data = noralta_data[
-    (noralta_data['Sold Date'].dt.date >= start_date) & (noralta_data['Sold Date'].dt.date <= end_date)
-]
+    # Apply date range filter
+    noralta_data = noralta_data[
+        (noralta_data['Sold Date'].dt.date >= start_date) & (noralta_data['Sold Date'].dt.date <= end_date)
+    ]
 
-# Calculate deals from both Listing and Buyer sides
-listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    # Calculate deals from both Listing and Buyer sides
+    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
-# Rename columns for consistency
-listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
-buyer_deals = buyer_deals.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+    # Rename columns for consistency
+    listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
+    buyer_deals = buyer_deals.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
 
-# Calculate total deals and ranks
-listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
-buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+    # Calculate total deals and ranks
+    listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+    buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
 
-# Calculate top 5 agents for listings and buyers
-top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
-top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
+    # Calculate top 5 agents for listings and buyers
+    top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
+    top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
 
-# Display tables
-st.write("")  # Add a blank line for better readability
-col1, col2 = st.columns(2)
+    # Display tables
+    st.write("")  # Add a blank line for better readability
+    col1, col2 = st.columns(2)
 
-with col1:
-    st.write("Top 5 Performing Agents (Listings):")
-    st.table(top_listings_agents)
+    with col1:
+        st.write("Top 5 Performing Agents (Listings):")
+        st.table(top_listings_agents)
 
-with col2:
-    st.write("Top 5 Performing Agents (Buyers):")
-    st.table(top_buyers_agents)
+    with col2:
+        st.write("Top 5 Performing Agents (Buyers):")
+        st.table(top_buyers_agents)
 
-# Download button for combined table
-combined_agents = pd.concat([listing_deals, buyer_deals]).groupby('Agent Name').sum().reset_index()
-st.download_button(
-    label="Download Combined Agent Data",
-    data=combined_agents.to_csv(index=False),
-    file_name='combined_agent_data.csv',
-    mime='text/csv'
-)
+    # Download button for combined table
+    combined_agents = pd.concat([listing_deals, buyer_deals]).groupby('Agent Name').sum().reset_index()
+    st.download_button(
+        label="Download Combined Agent Data",
+        data=combined_agents.to_csv(index=False),
+        file_name='combined_agent_data.csv',
+        mime='text/csv'
+    )
 
 
 
