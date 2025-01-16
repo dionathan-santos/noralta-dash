@@ -143,13 +143,24 @@ def main():
     ]
 
 
-    # Calculate top 5 agents for listings and buyers
-    top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Listing Agent 1 - Agent Name', 'Total Deals', 'Rank']]
-    top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Buyer Agent 1 - Agent Name', 'Total Deals', 'Rank']]
+
+
+
+    # Combine deals from both Listing and Buyer sides
+    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
     # Rename columns for consistency
-    top_listings_agents = top_listings_agents.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
-    top_buyers_agents = top_buyers_agents.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+    listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
+    buyer_deals = buyer_deals.rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+
+    # Calculate total deals and ranks
+    listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+    buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+
+    # Calculate top 5 agents for listings and buyers
+    top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
+    top_buyers_agents = buyer_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
 
     # Display tables
     st.write("")  # Add a blank line for better readability
@@ -164,13 +175,13 @@ def main():
         st.table(top_buyers_agents)
 
     # Download button for combined table
-    combined_agents = pd.concat([top_listings_agents, top_buyers_agents]).groupby('Agent Name').sum().reset_index()
+    combined_agents = pd.concat([listing_deals, buyer_deals]).groupby('Agent Name').sum().reset_index()
     st.download_button(
         label="Download Combined Agent Data",
         data=combined_agents.to_csv(index=False),
         file_name='combined_agent_data.csv',
         mime='text/csv'
-)
+    )
 
 
 
