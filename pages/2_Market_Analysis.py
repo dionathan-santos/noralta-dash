@@ -117,7 +117,7 @@ def main():
         min_price, max_price = 0, listings_data['Sold Price'].max()
 
     # Days on Market Slider
-    dom_range = st.sidebar.slider("Days on Market", 0, 200, (0, 200))
+    dom_range = st.sidebar.slider("Days on Market", 0, 201, (0, 200))
 
     # Year Built
     years = sorted(listings_data['Year Built'].dropna().unique())
@@ -130,8 +130,8 @@ def main():
         (listings_data['Total Baths'].between(bath_range[0], bath_range[1])) &
         (listings_data['Total Bedrooms'].between(bed_range[0], bed_range[1])) &
         (listings_data['Sold Price'].between(min_price, max_price)) &
-        (listings_data['Days On Market'].between(dom_range[0], dom_range[1]))
-    )
+        (listings_data['Days On Market'].between(dom_range[0], dom_range[1] if dom_range[1] < 200 else 200))
+)
 
     if selected_firms:
         mask &= (
