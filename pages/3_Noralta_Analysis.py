@@ -179,10 +179,8 @@ def main():
         name='Total Sales',
         line=dict(color='blue', width=2),
         hovertemplate=(
-            'Date: %{x}
-' +
-            'Total Sales #: %{y}
-'
+            'Date: %{x}' +
+            'Total Sales #: %{y}'
         )
     ))
 
@@ -218,10 +216,8 @@ def main():
         name='Average Sold Price',
         line=dict(color='green', width=2),
         hovertemplate=(
-            'Date: %{x}
-' +
-            'Average Sold Price: $%{y:,.2f}
-'
+            'Date: %{x}' +
+            'Average Sold Price: $%{y:,.2f}'
         )
     ))
 
