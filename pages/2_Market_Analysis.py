@@ -319,15 +319,28 @@ def main():
     # Flatten the multi-level columns
     community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']
 
+    # Create community-based metrics
+    community_metrics = filtered_data.groupby('Community').agg({
+        'Sold Price': ['count', 'mean', 'sum'],
+        'Days On Market': 'mean',
+        'Listing Firm 1 - Office Name': lambda x: x.mode().iloc[0]  # Most common firm
+    }).reset_index()
+
+    # Flatten the multi-level columns
+    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']
+
+    # Filter to the top 20 communities by number of sales
+    top_20_communities = community_metrics.nlargest(20, 'Number_of_Sales')
+
     # Create a heatmap
     fig_heatmap = px.density_heatmap(
-        community_metrics,
+        top_20_communities,
         x='Community',
         y='Average_DOM',
         z='Number_of_Sales',
-        nbinsx=len(community_metrics['Community'].unique()),
+        nbinsx=len(top_20_communities['Community'].unique()),
         nbinsy=50,
-        title='Heatmap of Sold Properties by Community',
+        title='Heatmap of Sold Properties by Top 20 Communities',
         color_continuous_scale='Viridis',
         hover_data={
             'Community': True,
@@ -349,7 +362,7 @@ def main():
             "Average Days on Market: %{customdata[4]:.1f} days<br>" +
             "Top Selling Firm: %{customdata[5]}<extra></extra>"
         ),
-        customdata=community_metrics[['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']]
+        customdata=top_20_communities[['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM', 'Top_Selling_Firm']]
     )
 
     # Update layout
@@ -361,7 +374,6 @@ def main():
 
     # Display the heatmap
     st.plotly_chart(fig_heatmap)
-
 
 
 if __name__ == "__main__":
