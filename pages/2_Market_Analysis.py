@@ -334,24 +334,19 @@ def main():
             colorscale='Viridis',  # Color scale
             hoverongaps=False,
             hovertemplate=(
-                "<b>Community: %{x}</b>" +
-
-                "Average Days on Market: %{y:.1f} days" +
-
-                "Number of Sales: %{z}" +
-
-                "Average Sales Price: $%{customdata[0]:,.2f}" +
-
-                "Total Volume: $%{customdata[1]:,.2f}" +
-
+                "<b>Community: %{x}</b><br>" +
+                "Average Days on Market: %{y:.1f} days<br>" +
+                "Number of Sales: %{z}<br>" +
+                "Average Sales Price: $%{customdata[0]:,.2f}<br>" +
+                "Total Volume: $%{customdata[1]:,.2f}<br>" +
                 "Top Selling Firm: %{customdata[2]}<extra></extra>"
-            ),
-            customdata=np.array([
-                top_20_communities['Average_Price'],
-                top_20_communities['Total_Volume'],
-                top_20_communities['Top_Selling_Firm']
-            ]).T  # Transpose to match the shape
-        ))
+            )
+                        customdata=np.array([
+                            top_20_communities['Average_Price'],
+                            top_20_communities['Total_Volume'],
+                            top_20_communities['Top_Selling_Firm']
+                        ]).T  # Transpose to match the shape
+                    ))
 
         # Update layout
         fig_heatmap.update_layout(
