@@ -146,16 +146,16 @@ def main():
 
 
 
-# Combine deals from both Listing and Buyer sides
-listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    # Combine deals from both Listing and Buyer sides
+    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
-# Combine deals from both sides
-all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - Agent Name').sum().reset_index()
+    # Combine deals from both sides
+    all_deals = pd.concat([listing_deals, buyer_deals]).groupby('Listing Agent 1 - Agent Name').sum().reset_index()
 
-# Calculate total deals and ranks
-all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
-all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+    # Calculate total deals and ranks
+    all_deals['Total Deals'] = all_deals['Total Deals'].fillna(0)
+    all_deals['Rank'] = all_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
 
     # KPIs
     st.subheader("KPIs")
