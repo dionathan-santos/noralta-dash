@@ -321,36 +321,6 @@ def main():
 
 
 
-
-    # Create community-based metrics
-    community_metrics = filtered_data.groupby('Community').agg({
-        'Sold Price': ['count', 'mean', 'sum'],
-        'Days On Market': 'mean'
-    }).reset_index()
-
-    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM']
-
-    # Calculate the top selling firm for each community
-    top_selling_firms = filtered_data.groupby('Community').apply(
-        lambda x: x['Listing Firm 1 - Office Name'].value_counts().idxmax()
-    ).reset_index(name='Top_Selling_Firm')
-
-    # Merge the top selling firm information into the community metrics
-    community_metrics = community_metrics.merge(top_selling_firms, on='Community', how='left')
-
-    # Add a detailed community metrics table
-    st.subheader("Community Metrics Detail")
-    # Format the metrics for better readability
-    community_metrics['Average_Price'] = community_metrics['Average_Price'].map('${:,.2f}'.format)
-    community_metrics['Total_Volume'] = community_metrics['Total_Volume'].map('${:,.2f}'.format)
-    community_metrics['Average_DOM'] = community_metrics['Average_DOM'].map('{:.1f} days'.format)
-
-    # Display the table
-    st.dataframe(
-        community_metrics.sort_values('Number_of_Sales', ascending=False),
-        height=400
-    )
-
     # Check if community_metrics is not empty before filtering
     if not community_metrics.empty:
         # Filter to the top 20 communities by number of sales
@@ -365,10 +335,15 @@ def main():
             hoverongaps=False,
             hovertemplate=(
                 "<b>Community: %{x}</b>" +
+
                 "Average Days on Market: %{y:.1f} days" +
+
                 "Number of Sales: %{z}" +
+
                 "Average Sales Price: $%{customdata[0]:,.2f}" +
+
                 "Total Volume: $%{customdata[1]:,.2f}" +
+
                 "Top Selling Firm: %{customdata[2]}<extra></extra>"
             ),
             customdata=np.array([
