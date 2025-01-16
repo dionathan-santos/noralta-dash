@@ -136,9 +136,11 @@ def main():
 
     filtered_data = data[mask]
 
-
-
-
+    # Filter for Noralta
+    noralta_data = filtered_data[
+        (filtered_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+        (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+    ]
 
     # KPIs
     st.subheader("KPIs")
@@ -214,9 +216,7 @@ def main():
                             xaxis_title='Date',
                             yaxis_title='Value',
                             legend_title='Metric')
-    st.plotly_chartfig_trends
-
-  
+    st.plotly_chart(fig_trends)
 
 if __name__ == "__main__":
     main()
