@@ -1,4 +1,4 @@
-import streamlit as st  
+import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
@@ -72,8 +72,8 @@ def main():
     st.sidebar.subheader("Date Range")
     min_date = data['Sold Date'].min().date()
     max_date = data['Sold Date'].max().date()
-    start_date = st.sidebar.date_input("Start Date", min_date, min_date, max_date)
-    end_date = st.sidebar.date_input("End Date", max_date, min_date, max_date)
+    start_date = st.sidebar.date_input("Start Date", min_value=min_date, max_value=max_date, value=min_date)
+    end_date = st.sidebar.date_input("End Date", min_value=min_date, max_value=max_date, value=max_date)
 
     # Agent-Specific
     st.sidebar.subheader("Agent-Specific")
@@ -179,8 +179,10 @@ def main():
         name='Total Sales',
         line=dict(color='blue', width=2),
         hovertemplate=(
-            'Date: %{x}<br>' +
-            'Total Sales #: %{y}<br>'
+            'Date: %{x}
+' +
+            'Total Sales #: %{y}
+'
         )
     ))
 
@@ -216,8 +218,10 @@ def main():
         name='Average Sold Price',
         line=dict(color='green', width=2),
         hovertemplate=(
-            'Date: %{x}<br>' +
-            'Average Sold Price: $%{y:,.2f}<br>'
+            'Date: %{x}
+' +
+            'Average Sold Price: $%{y:,.2f}
+'
         )
     ))
 
