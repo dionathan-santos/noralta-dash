@@ -222,12 +222,9 @@ def main():
         name='Total Sales',
         line=dict(color='red', width=6),
         hovertemplate=(
-            'Date: %{x}
-' +
-            'Total Gross Sales: $%{customdata[0]:,.2f}
-' +
-            'Total Sales #: %{y}
-' +
+            'Date: %{x}' +
+            'Total Gross Sales: $%{customdata[0]:,.2f}' +
+            'Total Sales #: %{y}' +
             'Avg Sales Price: $%{customdata[1]:,.2f}'
         ),
         customdata=total_sales[['Total Gross Sales', 'Avg Sales Price']]
@@ -245,14 +242,10 @@ def main():
             name=property_type,
             line=dict(color=colors[i], width=2),
             hovertemplate=(
-                'Date: %{x}
-' +
-                'Property Type: %{text}
-' +
-                'Total Gross Sales: $%{customdata[0]:,.2f}
-' +
-                'Total Sales #: %{y}
-' +
+                'Date: %{x}' +
+                'Property Type: %{text}' +
+                'Total Gross Sales: $%{customdata[0]:,.2f}' +
+                'Total Sales #: %{y}' +
                 'Avg Sales Price: $%{customdata[1]:,.2f}'
             ),
             customdata=property_sales[['Total Gross Sales', 'Avg Sales Price']],
