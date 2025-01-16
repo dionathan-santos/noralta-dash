@@ -146,9 +146,9 @@ def main():
 
 
 
-    # Combine deals from both Listing and Buyer sides
-    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    # Calculate deals from both Listing and Buyer sides before applying other filters
+    listing_deals = data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    buyer_deals = data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
     # Rename columns for consistency
     listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
@@ -157,6 +157,40 @@ def main():
     # Calculate total deals and ranks
     listing_deals['Rank'] = listing_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
     buyer_deals['Rank'] = buyer_deals['Total Deals'].rank(method='dense', ascending=False).astype(int)
+
+    # Apply date range filter to data
+    data = data[(data['Sold Date'].dt.date >= start_date) & (data['Sold Date'].dt.date <= end_date)]
+
+    # Apply other filters
+    mask = (
+        (data['Sold Price'].between(min_price, max_price)) &
+        (data['Days On Market'].between(dom_range[0], dom_range[1])) &
+        (data['Year Built'].isin(selected_years) if selected_years else True) &
+        (data['Property Class'].isin(selected_property_types) if selected_property_types else True) &
+        (data['Building Type'].isin(selected_building_types) if selected_building_types else True) &
+        (data['Community'].isin(selected_communities) if selected_communities else True)
+    )
+
+    if selected_agents:
+        mask &= (
+            (data['Listing Agent 1 - Agent Name'].isin(selected_agents)) |
+            (data['Buyer Agent 1 - Agent Name'].isin(selected_agents))
+        )
+
+    if selected_transaction_type == 'Listing Firm':
+        mask &= data['Listing Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Buyer Firm':
+        mask &= data['Buyer Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Dual Representation':
+        mask &= (data['Listing Firm 1 - Office Name'] == data['Buyer Firm 1 - Office Name'])
+
+    filtered_data = data[mask]
+
+    # Filter for Noralta
+    noralta_data = filtered_data[
+        (filtered_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+        (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+    ]
 
     # Calculate top 5 agents for listings and buyers
     top_listings_agents = listing_deals.nlargest(5, 'Total Deals')[['Agent Name', 'Total Deals', 'Rank']]
@@ -182,7 +216,6 @@ def main():
         file_name='combined_agent_data.csv',
         mime='text/csv'
     )
-
 
 
 
