@@ -227,10 +227,10 @@ def main():
         name='Total Sales',
         line=dict(color='red', width=6),
         hovertemplate=(
-            'Date: %{x}' +
-            'Total Gross Sales: $%{customdata[0]:,.2f}' +
-            'Total Sales #: %{y}' +
-            'Avg Sales Price: $%{customdata[1]:,.2f}'
+            'Date: %{x}<br>' +
+            'Total Gross Sales: $%{customdata[0]:,.2f}<br>' +
+            'Total Sales #: %{y}<br>' +
+            'Avg Sales Price: $%{customdata[1]:,.2f}<br>'
         ),
         customdata=total_sales[['Total Gross Sales', 'Avg Sales Price']]
     ))
