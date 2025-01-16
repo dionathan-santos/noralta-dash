@@ -3,3 +3,5 @@ plotly
 pandas
 pymongo
 folium
+streamlit-folium==0.7.0
+folium==0.12.1
