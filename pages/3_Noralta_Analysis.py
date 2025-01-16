@@ -156,11 +156,13 @@ def main():
 
     with col3:
         top_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nlargest(5)
-        st.metric("Top 5 Performing Agents (Sales Volume)", top_agents.to_dict())
+        st.write("Top 5 Performing Agents (Sales Volume):")
+        st.write(top_agents.to_dict())
 
     with col4:
         bottom_agents = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().nsmallest(5)
-        st.metric("Bottom 5 Performing Agents (Sales Volume)", bottom_agents.to_dict())
+        st.write("Bottom 5 Performing Agents (Sales Volume):")
+        st.write(bottom_agents.to_dict())
 
     # Community Dominance
     st.subheader("Community Dominance")
