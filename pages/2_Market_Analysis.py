@@ -192,6 +192,21 @@ def main():
                           yaxis_title='Price ($)')
     st.plotly_chart(fig_price)
 
+
+    # Sold Listings Over Time
+    st.subheader("Sold Listings Over Time")
+    monthly_sales = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).size().reset_index(name='Number of Sales')
+    monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
+
+    fig_sales = go.Figure()
+    fig_sales.add_trace(go.Scatter(x=monthly_sales['Sold Date'], y=monthly_sales['Number of Sales'],
+                                 name='Number of Sales', line=dict(color='red')))
+    fig_sales.update_layout(title='Number of Properties Sold per Month',
+                          xaxis_title='Date',
+                          yaxis_title='Number of Sales')
+    st.plotly_chart(fig_sales)
+
+
     # Days on Market Analysis
     st.subheader("Days on Market vs Sold Price Distribution")
 
