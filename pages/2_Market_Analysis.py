@@ -327,21 +327,21 @@ def main():
         hovertemplate=(
             "<b>Community: %{x}</b>
     " +
-            "Average DOM: %{y:.1f} days
+            "Average Days on Market: %{y:.1f} days
     " +
             "Number of Sales: %{z}
     " +
-            "Average Price: $%{customdata[0]:,.2f}
+            "Average Sales Price: $%{customdata[0]:,.2f}
     " +
             "Total Volume: $%{customdata[1]:,.2f}
     " +
             "Top Selling Firm: %{customdata[2]}<extra></extra>"
         ),
-        customdata=np.column_stack((
+        customdata=np.dstack((
             top_20_communities['Average_Price'],
             top_20_communities['Total_Volume'],
             top_20_communities['Top_Selling_Firm']
-        ))
+        ))[0]
     ))
 
     # Update layout
