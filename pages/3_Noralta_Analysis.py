@@ -153,13 +153,13 @@ def main():
     ]
 
     # Apply date range filter
-    noralta_data = noralta_data[
+    noralta_data_date_filtered = noralta_data[
         (noralta_data['Sold Date'].dt.date >= start_date) & (noralta_data['Sold Date'].dt.date <= end_date)
     ]
 
     # Calculate deals from both Listing and Buyer sides
-    listing_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
-    buyer_deals = noralta_data.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    listing_deals = noralta_data_date_filtered.groupby('Listing Agent 1 - Agent Name').size().reset_index(name='Total Deals')
+    buyer_deals = noralta_data_date_filtered.groupby('Buyer Agent 1 - Agent Name').size().reset_index(name='Total Deals')
 
     # Rename columns for consistency
     listing_deals = listing_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'})
@@ -193,7 +193,6 @@ def main():
         file_name='combined_agent_data.csv',
         mime='text/csv'
     )
-
 
 
 
