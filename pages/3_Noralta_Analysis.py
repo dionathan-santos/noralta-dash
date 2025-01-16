@@ -62,6 +62,9 @@ def main():
     data['List Price'] = data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
     data['Total Flr Area (SF)'] = data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
 
+    # Check and print column names
+    st.write("Column Names:", data.columns.tolist())
+
     # Filters
     st.sidebar.header("Filters")
 
@@ -74,26 +77,48 @@ def main():
 
     # Agent-Specific
     st.sidebar.subheader("Agent-Specific")
-    agents = data['Agent Name'].unique()
-    selected_agents = st.sidebar.multiselect("Select Agents", agents, default=agents)
+    if 'Agent Name' in data.columns:
+        agents = data['Agent Name'].unique()
+        selected_agents = st.sidebar.multiselect("Select Agents", agents, default=agents)
+    else:
+        st.sidebar.write("No 'Agent Name' column found.")
+        selected_agents = []
+
     top_bottom_agents = st.sidebar.selectbox("Top/Bottom Performing Agents", ["All", "Top 10", "Bottom 10"])
 
     # Community
     st.sidebar.subheader("Community")
-    communities = data['Community'].unique()
-    selected_communities = st.sidebar.multiselect("Select Communities", communities, default=communities)
+    if 'Community' in data.columns:
+        communities = data['Community'].unique()
+        selected_communities = st.sidebar.multiselect("Select Communities", communities, default=communities)
+    else:
+        st.sidebar.write("No 'Community' column found.")
+        selected_communities = []
 
     # Property Type
     st.sidebar.subheader("Property Type")
-    property_classes = data['Property Class'].unique()
-    selected_property_classes = st.sidebar.multiselect("Select Property Classes", property_classes, default=property_classes)
-    building_types = data['Building Type'].unique()
-    selected_building_types = st.sidebar.multiselect("Select Building Types", building_types, default=building_types)
+    if 'Property Class' in data.columns:
+        property_classes = data['Property Class'].unique()
+        selected_property_classes = st.sidebar.multiselect("Select Property Classes", property_classes, default=property_classes)
+    else:
+        st.sidebar.write("No 'Property Class' column found.")
+        selected_property_classes = []
+
+    if 'Building Type' in data.columns:
+        building_types = data['Building Type'].unique()
+        selected_building_types = st.sidebar.multiselect("Select Building Types", building_types, default=building_types)
+    else:
+        st.sidebar.write("No 'Building Type' column found.")
+        selected_building_types = []
 
     # Transaction Type
     st.sidebar.subheader("Transaction Type")
-    transaction_types = data['Transaction Type'].unique()
-    selected_transaction_types = st.sidebar.multiselect("Select Transaction Types", transaction_types, default=transaction_types)
+    if 'Transaction Type' in data.columns:
+        transaction_types = data['Transaction Type'].unique()
+        selected_transaction_types = st.sidebar.multiselect("Select Transaction Types", transaction_types, default=transaction_types)
+    else:
+        st.sidebar.write("No 'Transaction Type' column found.")
+        selected_transaction_types = []
 
     # Price Range
     st.sidebar.subheader("Price Range")
@@ -207,13 +232,16 @@ def main():
     st.plotly_chart(fig_avg_price)
 
     # Visualization: Distribution of Property Types in Noralta
-    property_type_counts = filtered_data['Property Class'].value_counts()
-    fig = px.pie(
-        values=property_type_counts.values,
-        names=property_type_counts.index,
-        title="Distribution of Property Class in Noralta",
-    )
-    st.plotly_chart(fig, use_container_width=True)
+    if 'Property Class' in filtered_data.columns:
+        property_type_counts = filtered_data['Property Class'].value_counts()
+        fig = px.pie(
+            values=property_type_counts.values,
+            names=property_type_counts.index,
+            title="Distribution of Property Class in Noralta",
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    else:
+        st.write("No 'Property Class' column found for visualization.")
 
 if __name__ == "__main__":
     main()
