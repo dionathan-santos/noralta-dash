@@ -1,311 +1,193 @@
-# import streamlit as st
-# import pandas as pd
-# import plotly.express as px
-# import plotly.graph_objects as go
-# import folium
-# from streamlit_folium import folium_static
-# from datetime import datetime
-# import numpy as np
-# from utils.data_utils import get_mongodb_data
+import streamlit as st  
+import pandas as pd
+import plotly.express as px
+import plotly.graph_objects as go
+from datetime import datetime, timedelta
+import folium
+from streamlit_folium import folium_static
+from utils.data_utils import get_mongodb_data
+import locale
+import seaborn as sns
 
-# # Set page config
-# st.set_page_config(
-#     page_title="Real Estate Market Analysis",
-#     page_icon="🏠",
-#     layout="wide"
-# )
+def main():
+    st.title("Real Estate Market Analysis Dashboard")
 
-# # Custom CSS for dark mode (black background with white text)
-# st.markdown("""
-#     <style>
-#     /* Set main background color and text color */
-#     .main {
-#         background-color: black;
-#         color: white;
-#     }
+    # Connect to MongoDB
+    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    database_name = "real_estate"
 
-#     /* Customize the metrics box */
-#     .stMetric {
-#         background-color: #333333; /* Dark gray for metrics background */
-#         color: white; /* White text for metrics */
-#         padding: 10px;
-#         border-radius: 5px;
-#     }
+    # Load data
+    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
 
-#     /* Change sidebar style */
-#     .sidebar .sidebar-content {
-#         background-color: #1a1a1a; /* Slightly lighter black for sidebar */
-#         color: white; /* White text for sidebar */
-#     }
+    # Data preprocessing
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'])
+    listings_data['Sold Price'] = listings_data['Sold Price'].str.replace('$', '').str.replace(',', '').astype(float)
+    listings_data['List Price'] = listings_data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
+    listings_data['Total Flr Area (SF)'] = listings_data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
 
-#     /* Customize all text to white */
-#     html, body, [class*="css"] {
-#         color: white;
-#         background-color: black;
-#     }
-#     </style>
-#     """, unsafe_allow_html=True)
+    # Sidebar Filters
+    st.sidebar.header("Filters")
 
-# def load_data():
-#     # MongoDB connection
-#     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
-#     database_name = "real_estate"
+    # Date Range
+    min_date = listings_data['Sold Date'].min()
+    max_date = listings_data['Sold Date'].max()
+    # Set default dates to 2024, but allow selection from full date range
+    default_start = datetime(2024, 1, 1)
+    default_end = datetime(2024, 12, 31)
 
-#     # Fetch data from listings collection
-#     listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+    start_date = st.sidebar.date_input("Start Date",
+                                    value=default_start,
+                                    min_value=min_date,
+                                    max_value=max_date)
+    end_date = st.sidebar.date_input("End Date",
+                                value=default_end,
+                                min_value=min_date,
+                                max_value=max_date)
 
-#     # Convert price columns to numeric
-#     price_columns = ['List Price', 'Sold Price', 'Price Per SQFT']
-#     for col in price_columns:
-#         listings_data[col] = listings_data[col].str.replace('[$,]', '', regex=True).astype(float)
+    # Firm Selection
+    all_firms = sorted(set(listings_data['Listing Firm 1 - Office Name'].dropna().unique()) |
+                      set(listings_data['Buyer Firm 1 - Office Name'].dropna().unique()))
+    selected_firms = st.sidebar.multiselect("Select Firms", all_firms)
 
-#     # Convert dates
-#     listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'])
+    # Area/City
+    cities = sorted(listings_data['Area/City'].dropna().unique())
+    selected_cities = st.sidebar.multiselect("Select Cities", cities)
 
-#     return listings_data
+    # Community
+    communities = sorted(listings_data['Community'].dropna().unique())
+    selected_communities = st.sidebar.multiselect("Select Communities", communities)
 
-# def filter_data(data, filters):
-#     mask = pd.Series(True, index=data.index)
+    # Property Type
+    property_types = sorted(listings_data['Property Class'].dropna().unique())
+    selected_property_types = st.sidebar.multiselect("Select Property Types", property_types)
 
-#     if filters.get('date_range'):
-#         start_date, end_date = filters['date_range']
-#         mask &= (data['Sold Date'].dt.date >= start_date) & \
-#                 (data['Sold Date'].dt.date <= end_date)
+    # Building Type
+    building_types = sorted(listings_data['Building Type'].dropna().unique())
+    selected_building_types = st.sidebar.multiselect("Select Building Types", building_types)
 
-#     if filters.get('cities'):
-#         mask &= data['Area/City'].isin(filters['cities'])
+    # Bathrooms Slider
+    max_baths = int(listings_data['Total Baths'].max())
+    bath_range = st.sidebar.slider("Number of Bathrooms", 1, max_baths, (1, max_baths))
 
-#     if filters.get('communities'):
-#         mask &= data['Community'].isin(filters['communities'])
+    # Bedrooms Slider
+    max_beds = int(listings_data['Total Bedrooms'].max())
+    bed_range = st.sidebar.slider("Number of Bedrooms", 1, max_beds, (1, max_beds))
 
-#     if filters.get('property_types'):
-#         mask &= data['Property Class'].isin(filters['property_types'])
+    # Price Range
+    max_price = int(listings_data['Sold Price'].max())
+    price_range = st.sidebar.text_input("Price Range (format: min-max)", f"0-{max_price}")
+    try:
+        min_price, max_price = map(int, price_range.split('-'))
+    except:
+        min_price, max_price = 0, listings_data['Sold Price'].max()
 
-#     if filters.get('beds_range'):
-#         mask &= (data['Total Bedrooms'] >= filters['beds_range'][0]) & \
-#                 (data['Total Bedrooms'] <= filters['beds_range'][1])
+    # Days on Market Slider
+    dom_range = st.sidebar.slider("Days on Market", 0, 200, (0, 200))
 
-#     if filters.get('baths_range'):
-#         mask &= (data['Total Baths'] >= filters['baths_range'][0]) & \
-#                 (data['Total Baths'] <= filters['baths_range'][1])
+    # Year Built
+    years = sorted(listings_data['Year Built'].dropna().unique())
+    selected_years = st.sidebar.multiselect("Select Years Built", years)
 
-#     if filters.get('price_range'):
-#         mask &= (data['Sold Price'] >= filters['price_range'][0]) & \
-#                 (data['Sold Price'] <= filters['price_range'][1])
+    # Apply filters
+    mask = (
+        (listings_data['Sold Date'].dt.date >= start_date) &
+        (listings_data['Sold Date'].dt.date <= end_date) &
+        (listings_data['Total Baths'].between(bath_range[0], bath_range[1])) &
+        (listings_data['Total Bedrooms'].between(bed_range[0], bed_range[1])) &
+        (listings_data['Sold Price'].between(min_price, max_price)) &
+        (listings_data['Days On Market'].between(dom_range[0], dom_range[1]))
+    )
 
-#     if filters.get('dom_range'):
-#         mask &= (data['Days On Market'] >= filters['dom_range'][0]) & \
-#                 (data['Days On Market'] <= filters['dom_range'][1])
+    if selected_firms:
+        mask &= (
+            (listings_data['Listing Firm 1 - Office Name'].isin(selected_firms)) |
+            (listings_data['Buyer Firm 1 - Office Name'].isin(selected_firms))
+        )
 
-#     if filters.get('year_built'):
-#         mask &= data['Year Built'].isin(filters['year_built'])
+    if selected_cities:
+        mask &= listings_data['Area/City'].isin(selected_cities)
 
-#     return data[mask]
+    if selected_communities:
+        mask &= listings_data['Community'].isin(selected_communities)
 
-# def create_sidebar_filters(data):
-#     st.sidebar.header("Filters")
+    if selected_property_types:
+        mask &= listings_data['Property Class'].isin(selected_property_types)
 
-#     # Date Range Filter
-#     min_date = data['Sold Date'].min().date()
-#     max_date = data['Sold Date'].max().date()
-#     default_start = datetime(2023, 1, 1).date()
-#     default_end = datetime(2024, 12, 31).date()
+    if selected_years:
+        mask &= listings_data['Year Built'].isin(selected_years)
 
-#     col1, col2 = st.sidebar.columns(2)
-#     with col1:
-#         start_date = st.date_input(
-#             "Start Date",
-#             value=default_start,
-#             min_value=min_date,
-#             max_value=max_date
-#         )
-#     with col2:
-#         end_date = st.date_input(
-#             "End Date",
-#             value=default_end,
-#             min_value=min_date,
-#             max_value=max_date
-#         )
-#     # Area/City Filter
-#     cities = sorted([str(x) for x in data['Area/City'].unique() if pd.notna(x)])
-#     selected_cities = st.sidebar.multiselect(
-#         "Select Area/City",
-#         options=cities,
-#         default=[]
-#     )
+    if selected_building_types:
+        mask &= listings_data['Building Type'].isin(selected_building_types)
 
-#     # Community Filter
-#     communities = sorted([str(x) for x in data['Community'].unique() if pd.notna(x)])
-#     selected_communities = st.sidebar.multiselect(
-#         "Select Community",
-#         options=communities,
-#         default=[]
-#     )
+    # Move this line outside of the if statements
+    filtered_data = listings_data[mask] if 'mask' in locals() else listings_data
 
-#     # Property Type Filter
-#     property_types = sorted([str(x) for x in data['Property Class'].unique() if pd.notna(x)])
-#     selected_property_types = st.sidebar.multiselect(
-#         "Select Property Type",
-#         options=property_types,
-#         default=[]
-#     )
+    # KPI Metrics
+    col1, col2, col3, col4 = st.columns(4)
 
-#     # Beds & Baths Sliders
-#     max_beds = int(data['Total Bedrooms'].max())
-#     max_baths = int(data['Total Baths'].max())
+    with col1:
+        st.metric("Total Listings Sold", len(filtered_data))
 
-#     beds_range = st.sidebar.slider(
-#         "Number of Bedrooms",
-#         0, max_beds, (0, max_beds)
-#     )
+    with col2:
+        avg_dom = filtered_data['Days On Market'].mean()
+        st.metric("Average DOM", f"{avg_dom:.1f} days")
 
-#     baths_range = st.sidebar.slider(
-#         "Number of Bathrooms",
-#         0, max_baths, (0, max_baths)
-#     )
+    with col3:
+        avg_price = filtered_data['Sold Price'].mean()
+        st.metric("Average Sold Price", f"${avg_price:,.2f}")
 
-#     # Price Range Input
-#     min_price = int(data['Sold Price'].min())
-#     max_price = int(data['Sold Price'].max())
-#     price_range = st.sidebar.slider(
-#         "Price Range ($)",
-#         min_price, max_price, (min_price, max_price),
-#         step=10000,
-#         format="$%d"
-#     )
-#     # Days on Market Range
-#     min_dom = int(data['Days On Market'].min())
-#     max_dom = int(data['Days On Market'].max())
-#     dom_range = st.sidebar.slider(
-#         "Days on Market",
-#         min_dom, max_dom, (min_dom, max_dom)
-#     )
+    with col4:
+        avg_price_sqft = (filtered_data['Sold Price'] / filtered_data['Total Flr Area (SF)']).mean()
+        st.metric("Average Price/SqFt", f"${avg_price_sqft:.2f}")
 
-#     # Year Built Selection
-#     years = sorted([int(x) for x in data['Year Built'].unique() if pd.notna(x)])
-#     selected_years = st.sidebar.multiselect(
-#         "Select Year Built",
-#         options=years,
-#         default=[]
-#     )
+    # Price Trends Chart
+    st.subheader("Price Trends Over Time")
+    monthly_avg = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
+        'List Price': 'mean',
+        'Sold Price': 'mean'
+    }).reset_index()
+    monthly_avg['Sold Date'] = monthly_avg['Sold Date'].dt.to_timestamp()
 
-#     return {
-#         'date_range': (start_date, end_date),
-#         'cities': selected_cities,
-#         'communities': selected_communities,
-#         'property_types': selected_property_types,
-#         'beds_range': beds_range,
-#         'baths_range': baths_range,
-#         'price_range': price_range,
-#         'dom_range': dom_range,
-#         'year_built': selected_years
-#     }
+    fig_price = go.Figure()
+    fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['List Price'],
+                                 name='List Price', line=dict(color='blue')))
+    fig_price.add_trace(go.Scatter(x=monthly_avg['Sold Date'], y=monthly_avg['Sold Price'],
+                                 name='Sold Price', line=dict(color='green')))
+    fig_price.update_layout(title='Average List vs Sold Prices',
+                          xaxis_title='Date',
+                          yaxis_title='Price ($)')
+    st.plotly_chart(fig_price)
 
-# def display_kpis(filtered_data):
-#     col1, col2, col3, col4 = st.columns(4)
+    # Days on Market Analysis
+    st.subheader("Days on Market Distribution")
+    fig_dom = px.histogram(filtered_data, x='Days On Market', nbins=50,
+                          title='Distribution of Days on Market')
+    st.plotly_chart(fig_dom)
 
-#     with col1:
-#         st.metric(
-#             "Total Listings Sold",
-#             f"{len(filtered_data):,}"
-#         )
 
-#     with col2:
-#         avg_dom = filtered_data['Days On Market'].mean()
-#         st.metric(
-#             "Average Days on Market",
-#             f"{avg_dom:.1f} days"
-#         )
+    st.subheader("Community Sales Heat Map")
 
-#     with col3:
-#         avg_price = filtered_data['Sold Price'].mean()
-#         st.metric(
-#             "Average Sold Price",
-#             f"${avg_price:,.2f}"
-#         )
+    # Create community-based metrics
+    community_metrics = filtered_data.groupby('Community').agg({
+        'Sold Price': ['count', 'mean', 'sum'],
+        'Days On Market': 'mean'
+    }).reset_index()
 
-#     with col4:
-#         avg_price_sqft = filtered_data['Price Per SQFT'].mean()
-#         st.metric(
-#             "Average Price/SqFt",
-#             f"${avg_price_sqft:.2f}"
-#         )
+    community_metrics.columns = ['Community', 'Number_of_Sales', 'Average_Price', 'Total_Volume', 'Average_DOM']
 
-# def create_additional_visualizations(filtered_data):
-#     # Create three columns for additional charts
-#     col1, col2, col3 = st.columns(3)
+    # Add a detailed community metrics table
+    st.subheader("Community Metrics Detail")
+    # Format the metrics for better readability
+    community_metrics['Average_Price'] = community_metrics['Average_Price'].map('${:,.2f}'.format)
+    community_metrics['Total_Volume'] = community_metrics['Total_Volume'].map('${:,.2f}'.format)
+    community_metrics['Average_DOM'] = community_metrics['Average_DOM'].map('{:.1f} days'.format)
 
-#     with col1:
-#         # Community Price Distribution
-#         st.subheader("Community Price Distribution")
-#         community_prices = filtered_data.groupby('Community')['Sold Price'].mean().sort_values(ascending=True)
-#         fig_community = px.bar(community_prices,
-#                              title="Average Price by Community",
-#                              labels={'value': 'Average Price ($)', 'Community': 'Community'})
-#         st.plotly_chart(fig_community, use_container_width=True)
+    # Display the table
+    st.dataframe(
+        community_metrics.sort_values('Number_of_Sales', ascending=False),
+        height=400
+    )
 
-#     with col2:
-#         # Property Type Distribution
-#         st.subheader("Property Type Distribution")
-#         fig_property = px.pie(filtered_data,
-#                             names='Property Class',
-#                             title="Property Type Distribution")
-#         st.plotly_chart(fig_property, use_container_width=True)
 
-#     with col3:
-#         # Price Range Distribution
-#         st.subheader("Price Range Distribution")
-#         fig_price_dist = px.histogram(filtered_data,
-#                                     x='Sold Price',
-#                                     nbins=30,
-#                                     title="Distribution of Sold Prices")
-#         st.plotly_chart(fig_price_dist, use_container_width=True)
-
-# def main():
-#     st.title("Real Estate Market Analysis")
-#     st.write("Comprehensive market analysis and performance metrics")
-
-#     # Load data
-#     data = load_data()
-
-#     # Create and apply filters
-#     filters = create_sidebar_filters(data)
-#     filtered_data = filter_data(data, filters)
-
-#     # Display KPIs
-#     display_kpis(filtered_data)
-
-#     # Create two columns for the charts
-#     col1, col2 = st.columns(2)
-
-#     with col1:
-#         # Price Trends Chart
-#         st.subheader("Price Trends")
-#         price_trends = filtered_data.groupby(filtered_data['Sold Date'].dt.to_period('M')).agg({
-#             'List Price': 'mean',
-#             'Sold Price': 'mean'
-#         }).reset_index()
-        
-#         # Convert Period to datetime
-#         price_trends['Sold Date'] = price_trends['Sold Date'].dt.to_timestamp()
-
-#         fig_price = px.line(price_trends,
-#                           x='Sold Date',
-#                           y=['List Price', 'Sold Price'],
-#                           title="Average List vs Sold Price Trends")
-#         st.plotly_chart(fig_price, use_container_width=True)
-
-#     with col2:
-#         # Days on Market Analysis
-#         st.subheader("Days on Market Distribution")
-#         fig_dom = px.histogram(filtered_data,
-#                              x='Days On Market',
-#                              nbins=30,
-#                              title="Distribution of Days on Market")
-#         st.plotly_chart(fig_dom, use_container_width=True)
-
-#     # Add the new visualizations
-#     create_additional_visualizations(filtered_data)
-
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    main()
