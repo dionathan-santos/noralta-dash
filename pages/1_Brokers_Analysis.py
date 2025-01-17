@@ -89,7 +89,10 @@ def create_sidebar_filters(listings_data):
 
 # Main function
 def main():
-    st.title("Brokers Analysis Dashboard")
+    st.set_page_config(
+        st.title("Brokers Analysis Dashboard")
+        layout="wide"  # Ensures wide mode
+)
 
     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     database_name = "real_estate"

@@ -10,7 +10,10 @@ import numpy as np
 
 
 def main():
-    st.title("Real Estate Market Analysis Dashboard")
+    st.set_page_config(
+        st.title("Real Estate Market Analysis Dashboard")
+                layout="wide"  # Ensures wide mode
+)
 
 def get_mongodb_data(mongodb_uri, database_name, collection_name):
     """
