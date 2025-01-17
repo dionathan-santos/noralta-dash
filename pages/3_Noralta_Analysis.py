@@ -198,20 +198,35 @@ def main():
         st.plotly_chart(fig_sales)
 
     # Heatmap: Geographic sales performance
-    st.write("Heatmap: Geographic Sales Performance")
+    st.write("Geographic Sales Performance by Community")
+
+    # Group data by Community and sum Sold Price
     heatmap_data = noralta_data.groupby('Community')['Sold Price'].sum().reset_index()
-    fig_heatmap = px.density_mapbox(
+
+    # Sort data by Sold Price for better visualization
+    heatmap_data = heatmap_data.sort_values(by='Sold Price', ascending=False)
+
+    # Create a bar chart
+    fig_bar = px.bar(
         heatmap_data,
-        lat='Community',  # Replace with actual latitude column if available
-        lon='Community',  # Replace with actual longitude column if available
-        z='Sold Price',
-        radius=10,
-        center=dict(lat=53.5461, lon=-113.4938),  # Edmonton coordinates
-        zoom=9,
-        mapbox_style="open-street-map",
-        title="Geographic Sales Performance"
+        x='Community',
+        y='Sold Price',
+        title="Geographic Sales Performance by Community",
+        labels={'Community': 'Community', 'Sold Price': 'Total Sold Price'},
+        color='Sold Price',  # Optional: Add color gradient based on Sold Price
+        color_continuous_scale='Viridis'  # Optional: Use a color scale
     )
-    st.plotly_chart(fig_heatmap)
+
+    # Update layout for better readability
+    fig_bar.update_layout(
+        xaxis_title="Community",
+        yaxis_title="Total Sold Price",
+        xaxis_tickangle=-45,  # Rotate x-axis labels for better readability
+        showlegend=False
+    )
+
+    # Display the bar chart
+    st.plotly_chart(fig_bar, use_container_width=True)
 
     # Section 4: Trends Over Time
     st.subheader("Trends Over Time")
@@ -265,9 +280,6 @@ def main():
 
 
 
-
-    # Section 5: Efficiency Metrics
-    st.subheader("Efficiency Metrics")
 
     # Identify top 10 competitors by transaction count (excluding Noralta)
     top_competitors = filtered_data[filtered_data['Listing Firm 1 - Office Name'] != 'Royal LePage Noralta Real Estate']
