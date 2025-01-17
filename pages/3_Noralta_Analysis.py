@@ -452,26 +452,31 @@ def main():
     }).reset_index()
     property_performance.columns = ['Property Type', 'Transactions', 'Average DOM']
 
-    # Scatter Plot: Transactions vs DOM by Property Type
-    fig_scatter = px.scatter(
+    # Histogram: Distribution of Transactions by Property Type per DOM
+    fig_histogram = px.histogram(
         property_performance,
-        x='Average DOM',
-        y='Transactions',
-        color='Property Type',
-        title="Transactions vs Average DOM by Property Type (Noralta)",
+        x='Average DOM',  # Use Average DOM as the x-axis
+        y='Transactions',  # Use Transactions as the y-axis
+        color='Property Type',  # Differentiate by property type
+        title="Distribution of Transactions by Property Type per DOM (Noralta)",
         labels={'Average DOM': 'Average Days on Market', 'Transactions': 'Number of Transactions'},
-        size='Transactions',  # Adjust marker size based on transactions
-        hover_name='Property Type'  # Show property type on hover
+        nbins=20,  # Adjust the number of bins as needed
+        opacity=0.7  # Adjust opacity for better visibility
     )
 
     # Update layout for better readability
-    fig_scatter.update_layout(
+    fig_histogram.update_layout(
         xaxis_title="Average Days on Market (DOM)",
-        yaxis_title="Number of Transactions"
+        yaxis_title="Number of Transactions",
+        barmode='group'  # Group bars for better comparison
     )
 
-    # Display the scatter plot
-    st.plotly_chart(fig_scatter, use_container_width=True)
+    # Display the histogram
+    st.plotly_chart(fig_histogram, use_container_width=True)
+
+    # Table: Property type performance (Transactions and Average DOM)
+    st.write("**Property Type Performance (Noralta)**")
+    st.dataframe(property_performance)
 
 
 
