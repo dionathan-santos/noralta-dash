@@ -462,7 +462,8 @@ def main():
         xaxis_title="Number of Transactions",
         yaxis_title="Count",
         barmode='overlay'  # Overlay histograms for better comparison
-    st.plotly_chart(fig_histogram, use_container_width=True)
+    )
+
 
     # Display the histogram
     st.plotly_chart(fig_histogram, use_container_width=True)
