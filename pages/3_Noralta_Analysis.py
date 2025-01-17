@@ -4,6 +4,7 @@ import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
 from pymongo import MongoClient
+import numpy as np
 
 def get_mongodb_data(mongodb_uri, database_name, collection_name):
     """
