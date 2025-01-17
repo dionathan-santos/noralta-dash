@@ -440,72 +440,31 @@ def main():
         st.dataframe(top_buyer_agents)
 
 
+    # Section 3: Bottom-Performing Agents
+    st.subheader("Bottom-Performing Agents")
 
+    # Bottom 10 Performing Agents (Listings)
+    bottom_listing_agents = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
+        'Listing ID #': 'count',  # Total deals
+        'Sold Price': 'sum'       # Revenue contribution
+    }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
+    bottom_listing_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
-    # Section 4: Performance by Property Type
-    st.subheader("Performance by Property Type")
+    # Bottom 10 Performing Agents (Buyers)
+    bottom_buyer_agents = noralta_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
+        'Listing ID #': 'count',  # Total deals
+        'Sold Price': 'sum'       # Revenue contribution
+    }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
+    bottom_buyer_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
-    # Group data by property type to calculate transactions and average DOM
-    property_performance = noralta_agents_data.groupby('Property Class').agg({
-        'Listing ID #': 'count',  # Number of transactions
-        'Days On Market': 'mean'  # Average DOM
-    }).reset_index()
-    property_performance.columns = ['Property Type', 'Transactions', 'Average DOM']
-
-    # Histogram: Distribution of Transactions by Property Type per DOM
-    fig_histogram = px.histogram(
-        property_performance,
-        x='Average DOM',  # Use Average DOM as the x-axis
-        y='Transactions',  # Use Transactions as the y-axis
-        color='Property Type',  # Differentiate by property type
-        title="Distribution of Transactions by Property Type per DOM (Noralta)",
-        labels={'Average DOM': 'Average Days on Market', 'Transactions': 'Number of Transactions'},
-        nbins=20,  # Adjust the number of bins as needed
-        opacity=0.7  # Adjust opacity for better visibility
-    )
-
-    # Update layout for better readability
-    fig_histogram.update_layout(
-        xaxis_title="Average Days on Market (DOM)",
-        yaxis_title="Number of Transactions",
-        barmode='group'  # Group bars for better comparison
-    )
-
-    # Display the histogram
-    st.plotly_chart(fig_histogram, use_container_width=True)
-
-    # Table: Property type performance (Transactions and Average DOM)
-    st.write("**Property Type Performance (Noralta)**")
-    st.dataframe(property_performance)
-
-
-
-
-
-    # Section 5: Training and Support Insights
-    st.subheader("Training and Support Insights")
-
-    # Group data by agent and property type to calculate transactions and average DOM
-    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
-        'Listing ID #': 'count',  # Number of transactions
-        'Days On Market': 'mean'  # Average DOM
-    }).reset_index()
-    agent_property_performance.columns = ['Agent Name', 'Property Type', 'Transactions', 'Average DOM']
-
-    # Identify underperforming agents
-    underperforming_agents = agent_property_performance[
-        (agent_property_performance['Transactions'] < avg_closed_deals_per_agent) |  # Low deals
-        (agent_property_performance['Average DOM'] > noralta_agents_data['Days On Market'].mean())  # High DOM
-    ]
-
-    # Display underperforming agents
-    st.write("**Underperforming Agents (Noralta)**")
-    st.dataframe(underperforming_agents)
-
-    # Recommendations
-    st.write("**Recommendations**")
-    st.write("1. Provide training for agents in specific communities or property types where Noralta lags.")
-    st.write("2. Identify opportunities to replicate strategies from top-performing agents.")
+    # Display tables
+    col1, col2 = st.columns(2)
+    with col1:
+        st.write("**Bottom 10 Performing Agents (Listings)**")
+        st.dataframe(bottom_listing_agents)
+    with col2:
+        st.write("**Bottom 10 Performing Agents (Buyers)**")
+        st.dataframe(bottom_buyer_agents)
 
 
 if __name__ == "__main__":
