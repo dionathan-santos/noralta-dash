@@ -200,77 +200,6 @@ def main():
 
 
 
-    # Emerging Communities: Highlight areas with recent spikes in activity or pricing
-    st.subheader("Emerging Communities")
-
-    # Debug: Print column names to verify the correct columns
-    st.write("Columns in noralta_data:", noralta_data.columns.tolist())
-
-    # Ensure required columns exist
-    required_columns = ['Community', 'Sold Date', 'Sold Price', 'Listing ID #']
-    missing_columns = [col for col in required_columns if col not in noralta_data.columns]
-
-    if missing_columns:
-        st.error(f"Missing required columns: {missing_columns}. Please check your dataset.")
-    else:
-        # Group data by Community and Month
-        emerging_data = noralta_data.copy()
-        emerging_data['Month'] = emerging_data['Sold Date'].dt.to_period('M')  # Extract month
-        emerging_data = emerging_data.groupby(['Community', 'Month']).agg({
-            'Sold Price': ['sum', 'mean'],  # Total sales volume and average sold price
-            'Listing ID #': 'count'  # Number of transactions (sales volume)
-        }).reset_index()
-
-        # Flatten the multi-level column names
-        emerging_data.columns = ['Community', 'Month', 'Total Sales Volume', 'Average Sold Price', 'Sales Volume']
-
-        # Convert 'Month' to string for Plotly compatibility
-        emerging_data['Month'] = emerging_data['Month'].astype(str)
-
-        # Calculate month-over-month (MoM) changes
-        emerging_data['MoM Sales Volume Change'] = emerging_data.groupby('Community')['Sales Volume'].pct_change() * 100
-        emerging_data['MoM Average Price Change'] = emerging_data.groupby('Community')['Average Sold Price'].pct_change() * 100
-
-        # Filter for the most recent month
-        recent_month = emerging_data['Month'].max()
-        recent_data = emerging_data[emerging_data['Month'] == recent_month]
-
-        # Highlight communities with significant MoM changes
-        threshold = 20  # Define a threshold for significant changes (e.g., 20%)
-        emerging_communities = recent_data[
-            (recent_data['MoM Sales Volume Change'] > threshold) |
-            (recent_data['MoM Average Price Change'] > threshold)
-        ]
-
-        # Create a line chart for MoM changes
-        fig_emerging = px.line(
-            emerging_data[emerging_data['Community'].isin(emerging_communities['Community'])],
-            x='Month',
-            y=['MoM Sales Volume Change', 'MoM Average Price Change'],
-            color='Community',
-            title="Emerging Communities: Month-over-Month Changes in Sales Volume and Average Price",
-            labels={'value': 'Percentage Change (%)', 'Month': 'Month'},
-            line_dash_sequence=['solid', 'dot'],  # Different line styles for clarity
-            markers=True  # Add markers for better visibility
-        )
-
-        # Update layout for better readability
-        fig_emerging.update_layout(
-            xaxis_title="Month",
-            yaxis_title="Percentage Change (%)",
-            legend_title="Community",
-            hovermode="x unified"
-        )
-
-    st.write("**Note:** The data represents trends over time, showcasing sales volume and average days on market.")
-    st.plotly_chart(fig_emerging, use_container_width=True)
-
-    # Add a note explaining the threshold
-    st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
-
-
-
-
     # Section 4: Trends Over Time
     st.subheader("Trends Over Time")
     monthly_sales = noralta_data.groupby(noralta_data['Sold Date'].dt.to_period('M')).agg({
@@ -301,6 +230,57 @@ def main():
         legend_title='Metric'
     )
     st.plotly_chart(fig_trends)
+
+
+    # Seasonal DOM Trends: Heatmap of Average DOM by Month
+    st.subheader("Seasonal DOM Trends: Average DOM by Month")
+
+    # Ensure required columns exist
+    required_columns = ['Sold Date', 'Days On Market']
+    missing_columns = [col for col in required_columns if col not in noralta_data.columns]
+
+    if missing_columns:
+        st.error(f"Missing required columns: {missing_columns}. Please check your dataset.")
+    else:
+        # Extract month and year from Sold Date
+        noralta_data['Month'] = noralta_data['Sold Date'].dt.month_name()  # Full month name
+        noralta_data['Year'] = noralta_data['Sold Date'].dt.year
+
+        # Group data by Year and Month, calculate average DOM
+        seasonal_dom = noralta_data.groupby(['Year', 'Month'])['Days On Market'].mean().reset_index()
+
+        # Pivot the data for heatmap
+        seasonal_dom_pivot = seasonal_dom.pivot(index='Month', columns='Year', values='Days On Market')
+
+        # Reorder months for proper sorting
+        month_order = [
+            'January', 'February', 'March', 'April', 'May', 'June',
+            'July', 'August', 'September', 'October', 'November', 'December'
+        ]
+        seasonal_dom_pivot = seasonal_dom_pivot.reindex(month_order)
+
+        # Create heatmap
+        fig_heatmap = px.imshow(
+            seasonal_dom_pivot,
+            labels=dict(x="Year", y="Month", color="Average DOM"),
+            title="Average Days on Market (DOM) by Month and Year",
+            color_continuous_scale='Viridis',  # Use a color scale
+            text_auto=True  # Display values on the heatmap
+        )
+
+        # Update layout for better readability
+        fig_heatmap.update_layout(
+            xaxis_title="Year",
+            yaxis_title="Month",
+            coloraxis_colorbar=dict(title="Average DOM")
+        )
+    st.plotly_chart(fig_heatmap, use_container_width=True)
+        # Display the heatmap
+        st.plotly_chart(fig_heatmap, use_container_width=True)
+
+
+
+
 
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
