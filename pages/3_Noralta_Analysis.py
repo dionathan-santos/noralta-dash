@@ -516,9 +516,9 @@ def main():
                 yaxis_title="Number of Deals",
                 xaxis={'categoryorder': 'total descending'}  # Sort bars by descending order
             )
-        st.plotly_chart(fig_agent_contributions, use_container_width=True)
+
             # Display the stacked bar chart
-            st.plotly_chart(fig_agent_contributions, use_container_width=True)
+        st.plotly_chart(fig_agent_contributions, use_container_width=True)
 
 
 
