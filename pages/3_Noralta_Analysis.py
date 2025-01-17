@@ -263,10 +263,10 @@ def main():
         )
 
     st.write("**Note:** The data represents trends over time, showcasing sales volume and average days on market.")
-        st.plotly_chart(fig_emerging, use_container_width=True)
+    st.plotly_chart(fig_emerging, use_container_width=True)
 
-        # Add a note explaining the threshold
-        st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
+    # Add a note explaining the threshold
+    st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
 
 
 
