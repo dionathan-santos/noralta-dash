@@ -207,7 +207,7 @@ def main():
     st.write("Columns in noralta_data:", noralta_data.columns.tolist())
 
     # Ensure required columns exist
-    required_columns = ['Community', 'Sold Date', 'Sold Price', 'Listing ID']
+    required_columns = ['Community', 'Sold Date', 'Sold Price', 'Listing ID #']
     missing_columns = [col for col in required_columns if col not in noralta_data.columns]
 
     if missing_columns:
@@ -218,7 +218,7 @@ def main():
         emerging_data['Month'] = emerging_data['Sold Date'].dt.to_period('M')  # Extract month
         emerging_data = emerging_data.groupby(['Community', 'Month']).agg({
             'Sold Price': ['sum', 'mean'],  # Total sales volume and average sold price
-            'Listing ID': 'count'  # Number of transactions (sales volume)
+            'Listing ID #': 'count'  # Number of transactions (sales volume)
         }).reset_index()
 
         # Flatten the multi-level column names
@@ -264,8 +264,6 @@ def main():
 
         # Add a note explaining the threshold
         st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
-
-
 
 
     # Section 4: Trends Over Time
