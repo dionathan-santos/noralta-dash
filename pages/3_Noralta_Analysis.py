@@ -44,16 +44,87 @@ def main():
 
     # Sidebar Filters
     st.sidebar.header("Filters")
+
+    # Date Range
     min_date = data['Sold Date'].min()
     max_date = data['Sold Date'].max()
-    start_date = st.sidebar.date_input("Start Date", value=min_date, min_value=min_date, max_value=max_date)
-    end_date = st.sidebar.date_input("End Date", value=max_date, min_value=min_date, max_value=max_date)
+    default_start = datetime(2024, 1, 1)
+    default_end = datetime(2024, 12, 31)
+    start_date = st.sidebar.date_input("Start Date", value=default_start, min_value=min_date, max_value=max_date)
+    end_date = st.sidebar.date_input("End Date", value=default_end, min_value=min_date, max_value=max_date)
+
+    # Agent-Specific
+    all_agents = sorted(set(data['Listing Agent 1 - Agent Name'].dropna().unique()) | set(data['Buyer Agent 1 - Agent Name'].dropna().unique()))
+    selected_agents = st.sidebar.multiselect("Select Agents", all_agents)
+
+    # Area/City
+    cities = sorted(data['Area/City'].dropna().unique())
+    selected_cities = st.sidebar.multiselect("Select Cities", cities)
+
+    # Community
+    communities = sorted(data['Community'].dropna().unique())
+    selected_communities = st.sidebar.multiselect("Select Communities", communities)
+
+    # Property Type
+    property_types = sorted(data['Property Class'].dropna().unique())
+    selected_property_types = st.sidebar.multiselect("Select Property Types", property_types)
+
+    # Building Type
+    building_types = sorted(data['Building Type'].dropna().unique())
+    selected_building_types = st.sidebar.multiselect("Select Building Types", building_types)
+
+    # Transaction Type
+    transaction_types = ['Listing Firm', 'Buyer Firm', 'Dual Representation']
+    selected_transaction_type = st.sidebar.selectbox("Select Transaction Type", transaction_types)
+
+    # Price Range
+    max_price = int(data['Sold Price'].max())
+    price_range = st.sidebar.text_input("Price Range (format: min-max)", f"0-{max_price}")
+    try:
+        min_price, max_price = map(int, price_range.split('-'))
+    except:
+        min_price, max_price = 0, data['Sold Price'].max()
+
+    # Year Built
+    years = sorted(data['Year Built'].dropna().unique())
+    selected_years = st.sidebar.multiselect("Select Years Built", years)
+
+    # Days on Market (DOM)
+    max_dom = int(data['Days On Market'].max())
+    dom_range = st.sidebar.slider("Days on Market", 0, max_dom, (0, max_dom))
+
+    # Apply filters
+    mask = (
+        (data['Sold Date'].dt.date >= start_date) &
+        (data['Sold Date'].dt.date <= end_date) &
+        (data['Sold Price'].between(min_price, max_price)) &
+        (data['Days On Market'].between(dom_range[0], dom_range[1])) &
+        (data['Year Built'].isin(selected_years) if selected_years else True) &
+        (data['Property Class'].isin(selected_property_types) if selected_property_types else True) &
+        (data['Building Type'].isin(selected_building_types) if selected_building_types else True) &
+        (data['Community'].isin(selected_communities) if selected_communities else True) &
+        (data['Area/City'].isin(selected_cities) if selected_cities else True)
+    )
+
+    if selected_agents:
+        mask &= (
+            (data['Listing Agent 1 - Agent Name'].isin(selected_agents)) |
+            (data['Buyer Agent 1 - Agent Name'].isin(selected_agents))
+        )
+
+    if selected_transaction_type == 'Listing Firm':
+        mask &= data['Listing Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Buyer Firm':
+        mask &= data['Buyer Firm 1 - Office Name'].notna()
+    elif selected_transaction_type == 'Dual Representation':
+        mask &= (data['Listing Firm 1 - Office Name'] == data['Buyer Firm 1 - Office Name'])
+
+    filtered_data = data[mask]
 
     # Filter data for Noralta
-    noralta_data = data[
-        ((data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
-         (data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')) &
-        (data['Sold Date'].dt.date >= start_date) & (data['Sold Date'].dt.date <= end_date)
+    noralta_data = filtered_data[
+        ((filtered_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+         (filtered_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'))
     ]
 
     # Tab 1: Noralta's Numbers
@@ -69,11 +140,11 @@ def main():
         st.metric("Total Sales Volume", f"${total_sales_volume:,.2f}")
     with col3:
         noralta_dom = int(noralta_data['Days On Market'].mean())
-        market_dom = int(data['Days On Market'].mean())
+        market_dom = int(filtered_data['Days On Market'].mean())
         st.metric("Average DOM", f"{noralta_dom} days", delta=f"{market_dom - noralta_dom} days vs market", delta_color="inverse")
     with col4:
         noralta_sold_ratio = round(noralta_data['Sold Pr / List Pr Ratio'].mean(), 1)
-        market_sold_ratio = round(data['Sold Pr / List Pr Ratio'].mean(), 1)
+        market_sold_ratio = round(filtered_data['Sold Pr / List Pr Ratio'].mean(), 1)
         st.metric("Sold/List Price Ratio", f"{noralta_sold_ratio}%", delta=f"{noralta_sold_ratio - market_sold_ratio:.1f}% vs market", delta_color="normal")
 
     # Section 2: Market Share Analysis
@@ -81,7 +152,7 @@ def main():
     col1, col2 = st.columns(2)
     with col1:
         # Pie Chart: Noralta’s share of total transactions vs competitors
-        total_transactions = len(data)
+        total_transactions = len(filtered_data)
         noralta_transactions = len(noralta_data)
         other_transactions = total_transactions - noralta_transactions
         fig_pie = px.pie(
@@ -188,7 +259,7 @@ def main():
     with col2:
         # Histogram: Distribution of DOM for Noralta vs the market
         fig_dom = px.histogram(
-            data,
+            filtered_data,
             x='Days On Market',
             color='Listing Firm 1 - Office Name',
             title="Distribution of DOM: Noralta vs Market",
