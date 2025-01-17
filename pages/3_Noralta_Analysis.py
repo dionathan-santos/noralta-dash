@@ -260,19 +260,26 @@ def main():
     listing_percentage = (listing_firm / total_transactions) * 100
     buyer_percentage = (buyer_firm / total_transactions) * 100
 
-    # Create bar chart
+    # Create pie chart
     fig_contributions = px.pie(
-        x=['Listing Firm', 'Buyer Firm'],
-        y=[listing_firm, buyer_firm],
+        names=['Listing Firm', 'Buyer Firm'],
+        values=[listing_firm, buyer_firm],
         title="Listing Firm vs Buyer Firm Contributions",
-        labels={'x': 'Role', 'y': 'Number of Transactions'},
         color=['Listing Firm', 'Buyer Firm'],
         color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
-        text=[f"{listing_percentage:.1f}%", f"{buyer_percentage:.1f}%"]
+        labels={'names': 'Role', 'values': 'Number of Transactions'},
+        hole=0.3  # Optional: Adds a hole in the middle for a donut chart effect
     )
-    fig_contributions.update_traces(textposition='outside')
-    st.plotly_chart(fig_contributions)
 
+    # Add percentage labels
+    fig_contributions.update_traces(
+        textinfo='percent+label',  # Show percentage and label
+        textposition='inside',     # Place text inside the pie slices
+        pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
+    )
+
+    # Display the pie chart
+    st.plotly_chart(fig_contributions)
 
 
 if __name__ == "__main__":
