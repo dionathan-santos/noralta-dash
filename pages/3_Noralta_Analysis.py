@@ -244,28 +244,58 @@ def main():
     st.plotly_chart(fig_trends)
 
     # Section 5: Efficiency Metrics
-    st.subheader("Efficiency Metrics")
-    col1, col2 = st.columns(2)
-    with col1:
-        # Bar Chart: Listing Firm vs Buyer Firm contributions
-        listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
-        buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
-        fig_contributions = px.bar(
-            x=['Listing Firm', 'Buyer Firm'],
-            y=[listing_firm, buyer_firm],
-            title="Listing Firm vs Buyer Firm Contributions"
-        )
-        st.plotly_chart(fig_contributions)
-    with col2:
-        # Histogram: Distribution of DOM for Noralta vs the market
-        fig_dom = px.histogram(
-            filtered_data,
-            x='Days On Market',
-            color='Listing Firm 1 - Office Name',
-            title="Distribution of DOM: Noralta vs Market",
-            barmode='overlay'
-        )
-        st.plotly_chart(fig_dom)
+    # Bar Chart: Listing Firm vs Buyer Firm contributions
+    listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+    buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+
+    # Calculate percentages
+    total_transactions = listing_firm + buyer_firm
+    listing_percentage = (listing_firm / total_transactions) * 100
+    buyer_percentage = (buyer_firm / total_transactions) * 100
+
+    # Create bar chart
+    fig_contributions = px.bar(
+        x=['Listing Firm', 'Buyer Firm'],
+        y=[listing_firm, buyer_firm],
+        title="Listing Firm vs Buyer Firm Contributions",
+        labels={'x': 'Role', 'y': 'Number of Transactions'},
+        color=['Listing Firm', 'Buyer Firm'],
+        color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
+        text=[f"{listing_percentage:.1f}%", f"{buyer_percentage:.1f}%"]
+    )
+    fig_contributions.update_traces(textposition='outside')
+    st.plotly_chart(fig_contributions)
+
+        # Simplify data: Compare Noralta vs top 10 competitors
+    top_competitors = filtered_data['Listing Firm 1 - Office Name'].value_counts().nlargest(10).index.tolist()
+    top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)]
+
+    # Combine Noralta and top competitors data
+    noralta_dom = noralta_data['Days On Market']
+    competitors_dom = top_competitors_data['Days On Market']
+
+    # Create density plot
+    fig_dom = go.Figure()
+    fig_dom.add_trace(go.Histogram(
+        x=noralta_dom,
+        name='Noralta',
+        opacity=0.75,
+        marker_color='blue'
+    ))
+    fig_dom.add_trace(go.Histogram(
+        x=competitors_dom,
+        name='Top 10 Competitors',
+        opacity=0.75,
+        marker_color='orange'
+    ))
+    fig_dom.update_layout(
+        title="Distribution of DOM: Noralta vs Top 10 Competitors",
+        xaxis_title="Days on Market",
+        yaxis_title="Count",
+        barmode='overlay',
+        legend_title="Firm"
+    )
+    st.plotly_chart(fig_dom)
 
 if __name__ == "__main__":
     main()
