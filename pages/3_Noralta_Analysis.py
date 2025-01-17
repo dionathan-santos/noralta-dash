@@ -244,7 +244,6 @@ st.write("The above violin plot compares the distribution of Days on Market (DOM
     st.plotly_chart(fig_trends)
 
     # Section 5: Efficiency Metrics
-
     st.subheader("Efficiency Metrics")
 
     # Bar Chart: Listing Firm vs Buyer Firm contributions
