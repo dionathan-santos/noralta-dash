@@ -378,7 +378,11 @@ def main():
     # Tab 2: Agent Performance
     st.header("Agent Performance")
 
-
+    # Filter data for Noralta's agents only
+    noralta_agents_data = noralta_data[
+        (noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+        (noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+    ]
 
     # Step 1: Filter for Noralta agents on both listing and buyer sides
     noralta_listing_agents = noralta_agents_data[
@@ -405,7 +409,6 @@ def main():
         st.metric("Average Number of Closed Deals per Agent (Noralta)", round(avg_closed_deals_per_agent, 1))
     with col2:
         st.metric("Total Active Agents (Noralta)", total_active_agents)
-
 
 
 
