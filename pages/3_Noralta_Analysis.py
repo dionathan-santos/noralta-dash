@@ -233,7 +233,7 @@ def main():
 
 
     # Seasonal DOM Trends: Heatmap of Average DOM by Month
-    st.subheader("Seasonal DOM Trends: Average DOM by Month")
+    st.subheader("Noralta Seasonal DOM Trends: Average DOM by Month")
 
     # Ensure required columns exist
     required_columns = ['Sold Date', 'Days On Market']
@@ -278,7 +278,10 @@ def main():
         # Display the heatmap
     st.plotly_chart(fig_heatmap, use_container_width=True)
 
-
+    st.write("""
+            **Note:** The heatmap shows the average DOM for properties that were sold in a specific month.
+            For example, if a property was listed in January and sold in March, its DOM will be included in the March average.
+        """)
 
 
 
