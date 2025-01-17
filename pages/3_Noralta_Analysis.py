@@ -133,7 +133,7 @@ def main():
 
     # Section 1: Overview KPIs
     st.subheader("Overview KPIs")
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4 = st.columns([1, 1.5, 1.5, 1])  # Adjust column widths for better spacing
     with col1:
         st.metric("Total Listings Closed by Noralta", len(noralta_data))
     with col2:
@@ -147,7 +147,9 @@ def main():
         noralta_sold_ratio = round(noralta_data['Sold Pr / List Pr Ratio'].mean(), 1)
         market_sold_ratio = round(filtered_data['Sold Pr / List Pr Ratio'].mean(), 1)
         st.metric("Sold/List Price Ratio", f"{noralta_sold_ratio}%", delta=f"{noralta_sold_ratio - market_sold_ratio:.1f}% vs market", delta_color="normal")
-
+        
+# Section 2: Market Share Analysis
+    
     # Section 2: Market Share Analysis
     st.subheader("Market Share Analysis")
     col1, col2 = st.columns(2)
