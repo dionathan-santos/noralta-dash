@@ -446,6 +446,13 @@ def main():
     # Section 4: Performance by Property Type
     st.subheader("Performance by Property Type")
 
+    # Group data by agent and property type to calculate transactions and average DOM
+    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
+        'Listing ID #': 'count',  # Number of transactions
+        'Days On Market': 'mean'  # Average DOM
+    }).reset_index()
+    agent_property_performance.columns = ['Agent Name', 'Property Type', 'Transactions', 'Average DOM']
+
     # Histogram: Distribution of Transactions by Property Type
     fig_histogram = px.histogram(
         agent_property_performance,
@@ -464,18 +471,17 @@ def main():
         barmode='overlay'  # Overlay histograms for better comparison
     )
 
-
     # Display the histogram
     st.plotly_chart(fig_histogram, use_container_width=True)
-
-
-
-
-
 
     # Table: Property type preferences or expertise for each agent
     st.write("**Property Type Preferences by Agent (Noralta)**")
     st.dataframe(agent_property_performance.pivot(index='Agent Name', columns='Property Type', values='Transactions'))
+
+
+
+
+
 
     # Section 5: Training and Support Insights
     st.subheader("Training and Support Insights")
