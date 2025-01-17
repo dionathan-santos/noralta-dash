@@ -244,32 +244,32 @@ st.write("The above violin plot compares the distribution of Days on Market (DOM
     st.plotly_chart(fig_trends)
 
     # Section 5: Efficiency Metrics
-# Section 5: Efficiency Metrics
-st.subheader("Efficiency Metrics")
 
-# Bar Chart: Listing Firm vs Buyer Firm contributions
-listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
-buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+    st.subheader("Efficiency Metrics")
 
-# Calculate percentages
-total_transactions = listing_firm + buyer_firm
-listing_percentage = (listing_firm / total_transactions) * 100
-buyer_percentage = (buyer_firm / total_transactions) * 100
+    # Bar Chart: Listing Firm vs Buyer Firm contributions
+    listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+    buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
 
-# Create bar chart
-fig_contributions = px.bar(
-    x=['Listing Firm', 'Buyer Firm'],
-    y=[listing_firm, buyer_firm],
-    title="Listing Firm vs Buyer Firm Contributions",
-    labels={'x': 'Role', 'y': 'Number of Transactions'},
-    color=['Listing Firm', 'Buyer Firm'],
-    color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
-    text=[f"{listing_percentage:.1f}%", f"{buyer_percentage:.1f}%"]
-)
-fig_contributions.update_traces(textposition='outside')
-st.plotly_chart(fig_contributions)
+    # Calculate percentages
+    total_transactions = listing_firm + buyer_firm
+    listing_percentage = (listing_firm / total_transactions) * 100
+    buyer_percentage = (buyer_firm / total_transactions) * 100
 
-# Combine Noralta and top competitors data
+    # Create bar chart
+    fig_contributions = px.bar(
+        x=['Listing Firm', 'Buyer Firm'],
+        y=[listing_firm, buyer_firm],
+        title="Listing Firm vs Buyer Firm Contributions",
+        labels={'x': 'Role', 'y': 'Number of Transactions'},
+        color=['Listing Firm', 'Buyer Firm'],
+        color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
+        text=[f"{listing_percentage:.1f}%", f"{buyer_percentage:.1f}%"]
+    )
+    fig_contributions.update_traces(textposition='outside')
+    st.plotly_chart(fig_contributions)
+
+    # Combine Noralta and top competitors data
     noralta_dom = noralta_data['Days On Market']
     competitors_dom = top_competitors_data['Days On Market']
 
