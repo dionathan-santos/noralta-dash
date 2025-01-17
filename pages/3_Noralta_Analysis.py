@@ -378,24 +378,33 @@ def main():
     # Tab 2: Agent Performance
     st.header("Agent Performance")
 
-    # Step 1: Extract unique agents from both listing and buyer sides
-    listing_agents = noralta_agents_data['Listing Agent 1 - Agent Name'].dropna().unique()
-    buyer_agents = noralta_agents_data['Buyer Agent 1 - Agent Name'].dropna().unique()
-    unique_active_agents = set(listing_agents) | set(buyer_agents)  # Combine and remove duplicates
 
-    # Step 2: Calculate total active agents
-    total_active_agents = len(unique_active_agents)  # Total unique agents who performed deals
 
-    # Step 3: Calculate deals per agent
-    total_closed_deals = len(noralta_agents_data)  # Total closed deals
+    # Step 1: Filter for Noralta agents on both listing and buyer sides
+    noralta_listing_agents = noralta_agents_data[
+        noralta_agents_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+    ]['Listing Agent 1 - Agent Name'].dropna().unique()
+
+    noralta_buyer_agents = noralta_agents_data[
+        noralta_agents_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+    ]['Buyer Agent 1 - Agent Name'].dropna().unique()
+
+    # Step 2: Combine and remove duplicates to get unique Noralta agents
+    unique_active_agents = set(noralta_listing_agents) | set(noralta_buyer_agents)
+
+    # Step 3: Calculate total active agents (only Noralta agents)
+    total_active_agents = len(unique_active_agents)  # Total unique Noralta agents who performed deals
+
+    # Step 4: Calculate deals per agent (only Noralta agents)
+    total_closed_deals = len(noralta_agents_data)  # Total closed deals by Noralta agents
     avg_closed_deals_per_agent = total_closed_deals / total_active_agents  # Deals per agent
 
-    # Step 4: Display KPIs
+    # Step 5: Display KPIs
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Average Number of Closed Deals per Agent", round(avg_closed_deals_per_agent, 1))
+        st.metric("Average Number of Closed Deals per Agent (Noralta)", round(avg_closed_deals_per_agent, 1))
     with col2:
-        st.metric("Total Active Agents (Unique)", total_active_agents)
+        st.metric("Total Active Agents (Noralta)", total_active_agents)
 
 
 
