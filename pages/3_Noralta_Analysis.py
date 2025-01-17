@@ -313,10 +313,13 @@ def main():
     fig_cdf.update_layout(
         title="Cumulative Distribution of DOM: Noralta vs Top 10 Competitors",
         xaxis_title="Days on Market",
-    st.write("The above chart compares the cumulative distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
+        yaxis_title="Cumulative Probability",
         legend_title="Firm"
     )
     st.plotly_chart(fig_cdf)
+
+    # Add a description for the CDF plot
+    st.write("The above chart compares the cumulative distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
 
 
 if __name__ == "__main__":
