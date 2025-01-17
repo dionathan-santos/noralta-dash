@@ -23,8 +23,7 @@ def get_mongodb_data(mongodb_uri, database_name, collection_name):
         return pd.DataFrame()
 
 def main():
-    st.title("Noralta Analysis"),
-    st.write("Aimed at providing insights for Royal LePage Noralta Real Estate.")
+    st.title("Noralta Analysis Dashboard")
 
     # MongoDB connection
     mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
