@@ -240,7 +240,7 @@ def main():
     ##########################################
 
     # Visualization: Deals Per Agent by Brokers
-    st.header("Deals Per Agent by Brokers")
+    st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
     # Filter brokerage data for the selected date range
     filtered_brokerage = brokerage_data[(brokerage_data['Date'] >= pd.Timestamp(start_date)) & (brokerage_data['Date'] <= pd.Timestamp(end_date))]
@@ -327,7 +327,7 @@ def main():
     st.plotly_chart(fig_line, use_container_width=True)
 
     # Market Share Line Graph (Top 10 Firms)
-    st.header("Monthly Market Share by Firm (%)")
+    st.header("Monthly Market Share by Firm (%) - Top 10 + Noralta")
 
     # Extract Month and Firm details
     filtered_listings['Month'] = filtered_listings['Sold Date'].dt.to_period('M').dt.to_timestamp()
