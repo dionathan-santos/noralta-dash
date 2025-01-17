@@ -446,22 +446,31 @@ def main():
     # Section 4: Performance by Property Type
     st.subheader("Performance by Property Type")
 
-    # Scatter Plot: Number of transactions vs average DOM by agent, categorized by property type
-    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
-        'Listing ID #': 'count',  # Number of transactions
-        'Days On Market': 'mean'  # Average DOM
-    }).reset_index()
-    agent_property_performance.columns = ['Agent Name', 'Property Type', 'Transactions', 'Average DOM']
-
-    fig_scatter = px.scatter(
+    # Histogram: Distribution of Transactions by Property Type
+    fig_histogram = px.histogram(
         agent_property_performance,
         x='Transactions',
-        y='Average DOM',
         color='Property Type',
-        title="Transactions vs Average DOM by Agent and Property Type (Noralta)",
-        labels={'Transactions': 'Number of Transactions', 'Average DOM': 'Average Days on Market'}
+        title="Distribution of Transactions by Property Type (Noralta)",
+        labels={'Transactions': 'Number of Transactions'},
+        nbins=20,  # Adjust the number of bins as needed
+        opacity=0.7  # Adjust opacity for better visibility
     )
-    st.plotly_chart(fig_scatter, use_container_width=True)
+
+    # Update layout for better readability
+    fig_histogram.update_layout(
+        xaxis_title="Number of Transactions",
+        yaxis_title="Count",
+        barmode='overlay'  # Overlay histograms for better comparison
+    st.plotly_chart(fig_histogram, use_container_width=True)
+
+    # Display the histogram
+    st.plotly_chart(fig_histogram, use_container_width=True)
+
+
+
+
+
 
     # Table: Property type preferences or expertise for each agent
     st.write("**Property Type Preferences by Agent (Noralta)**")
