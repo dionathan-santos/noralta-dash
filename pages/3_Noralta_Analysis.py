@@ -265,13 +265,22 @@ def main():
 
 
 
+
+
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
 
-    # Identify top 10 competitors by transaction count (excluding Noralta)
-    top_competitors = filtered_data[filtered_data['Listing Firm 1 - Office Name'] != 'Royal LePage Noralta Real Estate']
+    # Identify top 10 competitors by transaction count (excluding Noralta and Wally Karout's transactions)
+    top_competitors = filtered_data[
+        (filtered_data['Listing Firm 1 - Office Name'] != 'Royal LePage Noralta Real Estate')  # Exclude Noralta
+    ]
     top_competitors = top_competitors['Listing Firm 1 - Office Name'].value_counts().nlargest(10).index.tolist()
     top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)].copy()
+
+    # Exclude Wally Karout's transactions from the Listing Firm side
+    top_competitors_data = top_competitors_data[
+        top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
+    ]
 
     # Bar Chart: Listing Firm vs Buyer Firm contributions (Noralta)
     listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
@@ -300,9 +309,12 @@ def main():
         pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
     )
 
-    # Calculate average contributions for top 10 competitors
-    avg_listing_firm = top_competitors_data[top_competitors_data['Listing Firm 1 - Office Name'].isin(top_competitors)].groupby('Listing Firm 1 - Office Name').size().mean()
-    avg_buyer_firm = top_competitors_data[top_competitors_data['Buyer Firm 1 - Office Name'].isin(top_competitors)].groupby('Buyer Firm 1 - Office Name').size().mean()
+    # Calculate average contributions for top 10 competitors (excluding Wally Karout's transactions in Listing Firm)
+    avg_listing_firm = top_competitors_data[
+        top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
+    ].groupby('Listing Firm 1 - Office Name').size().mean()
+
+    avg_buyer_firm = top_competitors_data.groupby('Buyer Firm 1 - Office Name').size().mean()
 
     # Create pie chart for top 10 competitors
     fig_top_competitors = px.pie(
@@ -328,6 +340,9 @@ def main():
         st.plotly_chart(fig_noralta, use_container_width=True)
     with col2:
         st.plotly_chart(fig_top_competitors, use_container_width=True)
+
+    # Add a note at the bottom of the graphs
+    st.write("**Note:** Transactions involving Wally Karout as a Listing Agent have been excluded from the Top 10 Competitors graph.")
 
 
 if __name__ == "__main__":
