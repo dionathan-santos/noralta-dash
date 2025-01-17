@@ -266,11 +266,13 @@ def main():
 
 
 
-
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
 
-    # Identify top 10 competitors by transaction count (excluding Noralta and Wally Karout's transactions)
+    # Debug: Print column names to verify the correct column for Listing Agent
+    st.write("Columns in top_competitors_data:", top_competitors_data.columns.tolist())
+
+    # Identify top 10 competitors by transaction count (excluding Noralta)
     top_competitors = filtered_data[
         (filtered_data['Listing Firm 1 - Office Name'] != 'Royal LePage Noralta Real Estate')  # Exclude Noralta
     ]
@@ -278,9 +280,13 @@ def main():
     top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)].copy()
 
     # Exclude Wally Karout's transactions from the Listing Firm side
-    top_competitors_data = top_competitors_data[
-        top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
-    ]
+    # Replace 'Listing Agent 1 - Name' with the correct column name
+    try:
+        top_competitors_data = top_competitors_data[
+            top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
+        ]
+    except KeyError:
+        st.error("Column 'Listing Agent 1 - Name' not found. Please check the column names in your dataset.")
 
     # Bar Chart: Listing Firm vs Buyer Firm contributions (Noralta)
     listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
@@ -310,40 +316,43 @@ def main():
     )
 
     # Calculate average contributions for top 10 competitors (excluding Wally Karout's transactions in Listing Firm)
-    avg_listing_firm = top_competitors_data[
-        top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
-    ].groupby('Listing Firm 1 - Office Name').size().mean()
+    try:
+        avg_listing_firm = top_competitors_data[
+            top_competitors_data['Listing Agent 1 - Name'] != 'Wally Karout'  # Exclude Wally Karout's transactions
+        ].groupby('Listing Firm 1 - Office Name').size().mean()
 
-    avg_buyer_firm = top_competitors_data.groupby('Buyer Firm 1 - Office Name').size().mean()
+        avg_buyer_firm = top_competitors_data.groupby('Buyer Firm 1 - Office Name').size().mean()
 
-    # Create pie chart for top 10 competitors
-    fig_top_competitors = px.pie(
-        names=['Listing Firm', 'Buyer Firm'],
-        values=[avg_listing_firm, avg_buyer_firm],
-        title="Top 10 Competitors: Average Listing vs Buyer Firm Contributions",
-        color=['Listing Firm', 'Buyer Firm'],
-        color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
-        labels={'names': 'Role', 'values': 'Number of Transactions'},
-        hole=0.3  # Optional: Adds a hole in the middle for a donut chart effect
-    )
+        # Create pie chart for top 10 competitors
+        fig_top_competitors = px.pie(
+            names=['Listing Firm', 'Buyer Firm'],
+            values=[avg_listing_firm, avg_buyer_firm],
+            title="Top 10 Competitors: Average Listing vs Buyer Firm Contributions",
+            color=['Listing Firm', 'Buyer Firm'],
+            color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
+            labels={'names': 'Role', 'values': 'Number of Transactions'},
+            hole=0.3  # Optional: Adds a hole in the middle for a donut chart effect
+        )
 
-    # Add percentage labels for top 10 competitors
-    fig_top_competitors.update_traces(
-        textinfo='percent+label',  # Show percentage and label
-        textposition='inside',     # Place text inside the pie slices
-        pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
-    )
+        # Add percentage labels for top 10 competitors
+        fig_top_competitors.update_traces(
+            textinfo='percent+label',  # Show percentage and label
+            textposition='inside',     # Place text inside the pie slices
+            pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
+        )
 
-    # Display both pie charts side by side
-    col1, col2 = st.columns(2)
-    with col1:
-        st.plotly_chart(fig_noralta, use_container_width=True)
-    with col2:
-        st.plotly_chart(fig_top_competitors, use_container_width=True)
+        # Display both pie charts side by side
+        col1, col2 = st.columns(2)
+        with col1:
+            st.plotly_chart(fig_noralta, use_container_width=True)
+        with col2:
+            st.plotly_chart(fig_top_competitors, use_container_width=True)
 
-    # Add a note at the bottom of the graphs
-    st.write("**Note:** Transactions involving Wally Karout as a Listing Agent have been excluded from the Top 10 Competitors graph.")
+        # Add a note at the bottom of the graphs
+        st.write("**Note:** Transactions involving Wally Karout as a Listing Agent have been excluded from the Top 10 Competitors graph.")
 
+    except KeyError as e:
+        st.error(f"Error: {e}. Please verify the column names in your dataset.")
 
 if __name__ == "__main__":
     main()
