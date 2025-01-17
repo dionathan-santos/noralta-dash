@@ -24,8 +24,8 @@ def get_mongodb_data(mongodb_uri, database_name, collection_name):
 
 def main():
     st.set_page_config(
-        st.title("Noralta Analysis")
-    st.write("Aimed at providing insights for Royal LePage Noralta Real Estate.")
+        st.title("Noralta Analysis"),
+    st.write("Aimed at providing insights for Royal LePage Noralta Real Estate."),
     layout="wide")
 
     # MongoDB connection

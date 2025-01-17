@@ -90,7 +90,7 @@ def create_sidebar_filters(listings_data):
 # Main function
 def main():
     st.set_page_config(
-        st.title("Brokers Analysis Dashboard")
+        st.title("Brokers Analysis Dashboard"),
         layout="wide"  # Ensures wide mode
 )
 
