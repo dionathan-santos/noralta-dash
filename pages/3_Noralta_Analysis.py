@@ -371,7 +371,7 @@ def main():
 
 
 
-
+#####################################################################################
 
     # Tab 2: Agent Performance
     st.header("Agent Performance")
@@ -423,16 +423,38 @@ def main():
         st.dataframe(top_buyer_agents)
 
     # Section 3: Agent Contribution
+
     st.subheader("Agent Contribution")
 
-    # Bar Chart: Total sales volume by agent
+    # Bar Chart: Total sales volume by agent (Top 20 Noralta Agents)
     agent_sales_volume = noralta_agents_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().reset_index()
+    agent_sales_volume.columns = ['Agent Name', 'Total Sales Volume']
+
+    # Sort by total sales volume and select top 20 agents
+    top_20_agents = agent_sales_volume.nlargest(20, 'Total Sales Volume')
+
+    # Create bar chart
     fig_agent_sales = px.bar(
-        agent_sales_volume,
-        x='Listing Agent 1 - Agent Name',
-        y='Sold Price',
-        title="Total Sales Volume by Agent (Noralta)"
+        top_20_agents,
+        x='Agent Name',
+        y='Total Sales Volume',
+        title="Total Sales Volume by Agent (Top 20 Noralta Agents)",
+        labels={'Agent Name': 'Agent', 'Total Sales Volume': 'Total Sales Volume ($)'},
+        text='Total Sales Volume'  # Display values on bars
     )
+
+    # Update layout for better readability
+    fig_agent_sales.update_traces(
+        texttemplate='%{text:,.0f}',  # Format text as numbers with commas
+        textposition='outside'        # Place text outside the bars
+    )
+    fig_agent_sales.update_layout(
+        xaxis_title="Agent",
+        yaxis_title="Total Sales Volume ($)",
+        xaxis={'categoryorder': 'total descending'}  # Sort bars by descending order
+    )
+
+    # Display the bar chart
     st.plotly_chart(fig_agent_sales, use_container_width=True)
 
     # Stacked Bar Chart: Listing-side vs Buyer-side contributions
