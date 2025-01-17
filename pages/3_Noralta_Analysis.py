@@ -224,6 +224,9 @@ def main():
         # Flatten the multi-level column names
         emerging_data.columns = ['Community', 'Month', 'Total Sales Volume', 'Average Sold Price', 'Sales Volume']
 
+        # Convert 'Month' to string for Plotly compatibility
+        emerging_data['Month'] = emerging_data['Month'].astype(str)
+
         # Calculate month-over-month (MoM) changes
         emerging_data['MoM Sales Volume Change'] = emerging_data.groupby('Community')['Sales Volume'].pct_change() * 100
         emerging_data['MoM Average Price Change'] = emerging_data.groupby('Community')['Average Sold Price'].pct_change() * 100
@@ -259,11 +262,13 @@ def main():
             hovermode="x unified"
         )
 
-        # Display the line chart
+    st.write("**Note:** The data represents trends over time, showcasing sales volume and average days on market.")
         st.plotly_chart(fig_emerging, use_container_width=True)
 
         # Add a note explaining the threshold
         st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
+
+
 
 
     # Section 4: Trends Over Time
