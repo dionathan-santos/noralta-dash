@@ -325,7 +325,7 @@ def main():
     # Display both pie charts side by side
     col1, col2 = st.columns(2)
     with col1:
-    st.plotly_chart(fig_top_competitors, use_container_width=True)
+        st.plotly_chart(fig_noralta, use_container_width=True)
     with col2:
         st.plotly_chart(fig_top_competitors, use_container_width=True)
 
