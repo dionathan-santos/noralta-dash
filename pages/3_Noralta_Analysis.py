@@ -227,7 +227,7 @@ def main():
         name='Sales Volume',
         line=dict(color='blue')
     ))
-st.write("The above violin plot compares the distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
+    st.write("The above violin plot compares the distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
         x=monthly_sales['Sold Date'],
         y=monthly_sales['Days On Market'],
         name='Average DOM',
@@ -242,6 +242,13 @@ st.write("The above violin plot compares the distribution of Days on Market (DOM
         legend_title='Metric'
     )
     st.plotly_chart(fig_trends)
+
+
+
+
+
+
+    
 
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
