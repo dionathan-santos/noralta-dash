@@ -387,27 +387,24 @@ def main():
     # Section 1: Agent KPIs
     st.subheader("Agent KPIs")
 
-    # Step 1: Fetch brokerage data and filter based on the selected date range
-    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")  # Fetch brokerage collection
-    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'])  # Convert 'Date' to datetime
-    filtered_brokerage = brokerage_data[
-        (brokerage_data['Date'] >= pd.to_datetime(start_date)) &
-        (brokerage_data['Date'] <= pd.to_datetime(end_date))
-    ]
+    # Step 1: Extract unique agents from both listing and buyer sides (only for Noralta agents)
+    listing_agents = noralta_agents_data['Listing Agent 1 - Agent Name'].dropna().unique()
+    buyer_agents = noralta_agents_data['Buyer Agent 1 - Agent Name'].dropna().unique()
+    unique_active_agents = set(listing_agents) | set(buyer_agents)  # Combine and remove duplicates
 
-    # Step 2: Calculate the average number of agents over the selected time frame
-    avg_agents = filtered_brokerage['Value'].mean()  # Average number of agents
+    # Step 2: Calculate total active agents (only for Noralta agents)
+    total_active_agents = len(unique_active_agents)  # Total unique agents who performed deals
 
-    # Step 3: Calculate the average number of closed deals per agent
+    # Step 3: Calculate deals per agent (only for Noralta agents)
     total_closed_deals = len(noralta_agents_data)  # Total closed deals
-    avg_closed_deals_per_agent = total_closed_deals / avg_agents  # Adjusted average
+    avg_closed_deals_per_agent = total_closed_deals / total_active_agents  # Deals per agent
 
     # Step 4: Display KPIs
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Average Number of Closed Deals per Agent", round(avg_closed_deals_per_agent, 1))
+        st.metric("Average Number of Closed Deals per Agent (Noralta)", round(avg_closed_deals_per_agent, 1))
     with col2:
-        st.metric("Total Active Agents (Avg)", round(avg_agents, 1))
+        st.metric("Total Active Agents (Noralta)", total_active_agents)
 
 
     # Section 2: Top Agents
