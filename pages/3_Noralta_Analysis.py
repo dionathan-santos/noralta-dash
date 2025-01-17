@@ -457,22 +457,43 @@ def main():
     # Display the bar chart
     st.plotly_chart(fig_agent_sales, use_container_width=True)
 
-    # Stacked Bar Chart: Listing-side vs Buyer-side contributions
+
+
+    # Stacked Bar Chart: Listing-side vs Buyer-side contributions (Top 20 Noralta Agents)
     agent_contributions = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Listing-side deals
         'Buyer Agent 1 - Agent Name': 'count'  # Buyer-side deals
     }).reset_index()
     agent_contributions.columns = ['Agent Name', 'Listing Deals', 'Buyer Deals']
 
+    # Calculate total contributions (Listing + Buyer Deals) for sorting
+    agent_contributions['Total Contributions'] = agent_contributions['Listing Deals'] + agent_contributions['Buyer Deals']
+
+    # Sort by total contributions and select top 20 agents
+    top_20_contributors = agent_contributions.nlargest(20, 'Total Contributions')
+
+    # Create stacked bar chart
     fig_agent_contributions = px.bar(
-        agent_contributions,
+        top_20_contributors,
         x='Agent Name',
         y=['Listing Deals', 'Buyer Deals'],
-        title="Listing vs Buyer Contributions by Agent (Noralta)",
+        title="Listing vs Buyer Contributions by Agent (Top 20 Noralta Agents)",
         labels={'value': 'Number of Deals', 'variable': 'Role'},
         barmode='stack'
     )
+
+    # Update layout for better readability
+    fig_agent_contributions.update_layout(
+        xaxis_title="Agent",
+        yaxis_title="Number of Deals",
+        xaxis={'categoryorder': 'total descending'}  # Sort bars by descending order
+    )
+
+    # Display the stacked bar chart
     st.plotly_chart(fig_agent_contributions, use_container_width=True)
+
+
+
 
     # Section 4: Performance by Property Type
     st.subheader("Performance by Property Type")
