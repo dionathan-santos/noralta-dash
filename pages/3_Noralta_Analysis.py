@@ -197,36 +197,67 @@ def main():
         )
         st.plotly_chart(fig_sales)
 
-    # Heatmap: Geographic sales performance
-    st.write("Geographic Sales Performance by Community")
 
-    # Group data by Community and sum Sold Price
-    heatmap_data = noralta_data.groupby('Community')['Sold Price'].sum().reset_index()
 
-    # Sort data by Sold Price for better visualization
-    heatmap_data = heatmap_data.sort_values(by='Sold Price', ascending=False)
 
-    # Create a bar chart
-    fig_bar = px.bar(
-        heatmap_data,
-        x='Community',
-        y='Sold Price',
-        title="Geographic Sales Performance by Community",
-        labels={'Community': 'Community', 'Sold Price': 'Total Sold Price'},
-        color='Sold Price',  # Optional: Add color gradient based on Sold Price
-        color_continuous_scale='Viridis'  # Optional: Use a color scale
+    # Emerging Communities: Highlight areas with recent spikes in activity or pricing
+    st.subheader("Emerging Communities")
+
+    # Group data by Community and Month
+    emerging_data = noralta_data.copy()
+    emerging_data['Month'] = emerging_data['Sold Date'].dt.to_period('M')  # Extract month
+    emerging_data = emerging_data.groupby(['Community', 'Month']).agg({
+        'Sold Price': ['sum', 'mean'],  # Total sales volume and average sold price
+        'Listing ID': 'count'  # Number of transactions (sales volume)
+    }).reset_index()
+
+    # Flatten the multi-level column names
+    emerging_data.columns = ['Community', 'Month', 'Total Sales Volume', 'Average Sold Price', 'Sales Volume']
+
+    # Calculate month-over-month (MoM) changes
+    emerging_data['MoM Sales Volume Change'] = emerging_data.groupby('Community')['Sales Volume'].pct_change() * 100
+    emerging_data['MoM Average Price Change'] = emerging_data.groupby('Community')['Average Sold Price'].pct_change() * 100
+
+    # Filter for the most recent month
+    recent_month = emerging_data['Month'].max()
+    recent_data = emerging_data[emerging_data['Month'] == recent_month]
+
+    # Highlight communities with significant MoM changes
+    threshold = 20  # Define a threshold for significant changes (e.g., 20%)
+    emerging_communities = recent_data[
+        (recent_data['MoM Sales Volume Change'] > threshold) |
+        (recent_data['MoM Average Price Change'] > threshold)
+    ]
+
+    # Create a line chart for MoM changes
+    fig_emerging = px.line(
+        emerging_data[emerging_data['Community'].isin(emerging_communities['Community'])],
+        x='Month',
+        y=['MoM Sales Volume Change', 'MoM Average Price Change'],
+        color='Community',
+        title="Emerging Communities: Month-over-Month Changes in Sales Volume and Average Price",
+        labels={'value': 'Percentage Change (%)', 'Month': 'Month'},
+        line_dash_sequence=['solid', 'dot'],  # Different line styles for clarity
+        markers=True  # Add markers for better visibility
     )
 
     # Update layout for better readability
-    fig_bar.update_layout(
-        xaxis_title="Community",
-        yaxis_title="Total Sold Price",
-        xaxis_tickangle=-45,  # Rotate x-axis labels for better readability
-        showlegend=False
+    fig_emerging.update_layout(
+        xaxis_title="Month",
+        yaxis_title="Percentage Change (%)",
+        legend_title="Community",
+        hovermode="x unified"
     )
 
-    # Display the bar chart
-    st.plotly_chart(fig_bar, use_container_width=True)
+    # Display the line chart
+    st.plotly_chart(fig_emerging, use_container_width=True)
+
+    # Add a note explaining the threshold
+    st.write(f"**Note:** Communities with a month-over-month increase of more than {threshold}% in sales volume or average price are highlighted.")
+
+
+
+
 
     # Section 4: Trends Over Time
     st.subheader("Trends Over Time")
