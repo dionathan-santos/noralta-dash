@@ -266,36 +266,29 @@ def main():
     fig_contributions.update_traces(textposition='outside')
     st.plotly_chart(fig_contributions)
 
-        # Simplify data: Compare Noralta vs top 10 competitors
-    top_competitors = filtered_data['Listing Firm 1 - Office Name'].value_counts().nlargest(10).index.tolist()
-    top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)]
+# Combine Noralta and top competitors data
+noralta_dom = noralta_data['Days On Market']
+competitors_dom = top_competitors_data['Days On Market']
 
-    # Combine Noralta and top competitors data
-    noralta_dom = noralta_data['Days On Market']
-    competitors_dom = top_competitors_data['Days On Market']
-
-    # Create density plot
-    fig_dom = go.Figure()
-    fig_dom.add_trace(go.Histogram(
-        x=noralta_dom,
-        name='Noralta',
-        opacity=0.75,
-        marker_color='blue'
-    ))
-    fig_dom.add_trace(go.Histogram(
-        x=competitors_dom,
-        name='Top 10 Competitors',
-        opacity=0.75,
-        marker_color='orange'
-    ))
-    fig_dom.update_layout(
-        title="Distribution of DOM: Noralta vs Top 10 Competitors",
-        xaxis_title="Days on Market",
-        yaxis_title="Count",
-        barmode='overlay',
-        legend_title="Firm"
-    )
-    st.plotly_chart(fig_dom)
+# Create box plot
+fig_dom = go.Figure()
+fig_dom.add_trace(go.Box(
+    y=noralta_dom,
+    name='Noralta',
+    marker_color='blue'
+))
+fig_dom.add_trace(go.Box(
+    y=competitors_dom,
+    name='Top 10 Competitors',
+    marker_color='orange'
+))
+fig_dom.update_layout(
+    title="Distribution of DOM: Noralta vs Top 10 Competitors",
+    yaxis_title="Days on Market",
+    boxmode='group',
+    legend_title="Firm"
+)
+st.plotly_chart(fig_dom)
 
 if __name__ == "__main__":
     main()
