@@ -442,42 +442,36 @@ def main():
 
 
 
-
     # Section 4: Performance by Property Type
     st.subheader("Performance by Property Type")
 
-    # Group data by agent and property type to calculate transactions and average DOM
-    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
+    # Group data by property type to calculate transactions and average DOM
+    property_performance = noralta_agents_data.groupby('Property Class').agg({
         'Listing ID #': 'count',  # Number of transactions
         'Days On Market': 'mean'  # Average DOM
     }).reset_index()
-    agent_property_performance.columns = ['Agent Name', 'Property Type', 'Transactions', 'Average DOM']
+    property_performance.columns = ['Property Type', 'Transactions', 'Average DOM']
 
-    # Histogram: Distribution of Transactions by Property Type
-    fig_histogram = px.histogram(
-        agent_property_performance,
-        x='Transactions',
+    # Scatter Plot: Transactions vs DOM by Property Type
+    fig_scatter = px.scatter(
+        property_performance,
+        x='Average DOM',
+        y='Transactions',
         color='Property Type',
-        title="Distribution of Transactions by Property Type (Noralta)",
-        labels={'Transactions': 'Number of Transactions'},
-        nbins=20,  # Adjust the number of bins as needed
-        opacity=0.7  # Adjust opacity for better visibility
+        title="Transactions vs Average DOM by Property Type (Noralta)",
+        labels={'Average DOM': 'Average Days on Market', 'Transactions': 'Number of Transactions'},
+        size='Transactions',  # Adjust marker size based on transactions
+        hover_name='Property Type'  # Show property type on hover
     )
 
     # Update layout for better readability
-    fig_histogram.update_layout(
-        xaxis_title="Number of Transactions",
-        yaxis_title="Count",
-        barmode='overlay'  # Overlay histograms for better comparison
+    fig_scatter.update_layout(
+        xaxis_title="Average Days on Market (DOM)",
+        yaxis_title="Number of Transactions"
     )
 
-    # Display the histogram
-    st.plotly_chart(fig_histogram, use_container_width=True)
-
-    # Table: Property type preferences or expertise for each agent
-    st.write("**Property Type Preferences by Agent (Noralta)**")
-    st.dataframe(agent_property_performance.pivot(index='Agent Name', columns='Property Type', values='Transactions'))
-
+    # Display the scatter plot
+    st.plotly_chart(fig_scatter, use_container_width=True)
 
 
 
