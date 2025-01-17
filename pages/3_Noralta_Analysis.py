@@ -274,9 +274,9 @@ def main():
             yaxis_title="Month",
             coloraxis_colorbar=dict(title="Average DOM")
         )
-    st.plotly_chart(fig_heatmap, use_container_width=True)
+
         # Display the heatmap
-        st.plotly_chart(fig_heatmap, use_container_width=True)
+    st.plotly_chart(fig_heatmap, use_container_width=True)
 
 
 
