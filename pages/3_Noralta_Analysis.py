@@ -260,26 +260,74 @@ def main():
     listing_percentage = (listing_firm / total_transactions) * 100
     buyer_percentage = (buyer_firm / total_transactions) * 100
 
-    # Create pie chart
-    fig_contributions = px.pie(
+
+
+
+
+
+    # Section 5: Efficiency Metrics
+    st.subheader("Efficiency Metrics")
+
+    # Identify top 10 competitors by transaction count (excluding Noralta)
+    top_competitors = filtered_data[filtered_data['Listing Firm 1 - Office Name'] != 'Royal LePage Noralta Real Estate']
+    top_competitors = top_competitors['Listing Firm 1 - Office Name'].value_counts().nlargest(10).index.tolist()
+    top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)].copy()
+
+    # Bar Chart: Listing Firm vs Buyer Firm contributions (Noralta)
+    listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+    buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
+
+    # Calculate percentages for Noralta
+    total_transactions = listing_firm + buyer_firm
+    listing_percentage = (listing_firm / total_transactions) * 100
+    buyer_percentage = (buyer_firm / total_transactions) * 100
+
+    # Create pie chart for Noralta
+    fig_noralta = px.pie(
         names=['Listing Firm', 'Buyer Firm'],
         values=[listing_firm, buyer_firm],
-        title="Listing Firm vs Buyer Firm Contributions",
+        title="Noralta: Listing Firm vs Buyer Firm Contributions",
         color=['Listing Firm', 'Buyer Firm'],
         color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
         labels={'names': 'Role', 'values': 'Number of Transactions'},
         hole=0.3  # Optional: Adds a hole in the middle for a donut chart effect
     )
 
-    # Add percentage labels
-    fig_contributions.update_traces(
+    # Add percentage labels for Noralta
+    fig_noralta.update_traces(
         textinfo='percent+label',  # Show percentage and label
         textposition='inside',     # Place text inside the pie slices
         pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
     )
 
-    # Display the pie chart
-    st.plotly_chart(fig_contributions)
+    # Calculate average contributions for top 10 competitors
+    avg_listing_firm = top_competitors_data[top_competitors_data['Listing Firm 1 - Office Name'].isin(top_competitors)].groupby('Listing Firm 1 - Office Name').size().mean()
+    avg_buyer_firm = top_competitors_data[top_competitors_data['Buyer Firm 1 - Office Name'].isin(top_competitors)].groupby('Buyer Firm 1 - Office Name').size().mean()
+
+    # Create pie chart for top 10 competitors
+    fig_top_competitors = px.pie(
+        names=['Listing Firm', 'Buyer Firm'],
+        values=[avg_listing_firm, avg_buyer_firm],
+        title="Top 10 Competitors: Average Listing vs Buyer Firm Contributions",
+        color=['Listing Firm', 'Buyer Firm'],
+        color_discrete_map={'Listing Firm': 'blue', 'Buyer Firm': 'green'},
+        labels={'names': 'Role', 'values': 'Number of Transactions'},
+        hole=0.3  # Optional: Adds a hole in the middle for a donut chart effect
+    )
+
+    # Add percentage labels for top 10 competitors
+    fig_top_competitors.update_traces(
+        textinfo='percent+label',  # Show percentage and label
+        textposition='inside',     # Place text inside the pie slices
+        pull=[0.1, 0]              # Optional: Pull out the first slice for emphasis
+    )
+
+    # Display both pie charts side by side
+    col1, col2 = st.columns(2)
+    with col1:
+    st.plotly_chart(fig_top_competitors, use_container_width=True)
+    with col2:
+        st.plotly_chart(fig_top_competitors, use_container_width=True)
 
 
 if __name__ == "__main__":
