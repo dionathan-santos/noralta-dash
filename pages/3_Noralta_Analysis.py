@@ -376,12 +376,18 @@ def main():
     # Tab 2: Agent Performance
     st.header("Agent Performance")
 
+    # Filter data for Noralta's agents only
+    noralta_agents_data = noralta_data[
+        (noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate') |
+        (noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
+    ]
+
     # Section 1: Agent KPIs
     st.subheader("Agent KPIs")
 
     # Calculate average number of closed deals per agent
-    avg_closed_deals = noralta_data.groupby('Listing Agent 1 - Agent Name').size().mean()
-    total_active_agents = noralta_data['Listing Agent 1 - Agent Name'].nunique()
+    avg_closed_deals = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').size().mean()
+    total_active_agents = noralta_agents_data['Listing Agent 1 - Agent Name'].nunique()
 
     # Display KPIs
     col1, col2 = st.columns(2)
@@ -394,14 +400,14 @@ def main():
     st.subheader("Top Agents")
 
     # Top 5 Performing Agents (Listings)
-    top_listing_agents = noralta_data.groupby('Listing Agent 1 - Agent Name').agg({
+    top_listing_agents = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
     }).nlargest(5, 'Listing ID #').reset_index()
     top_listing_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
     # Top 5 Performing Agents (Buyers)
-    top_buyer_agents = noralta_data.groupby('Buyer Agent 1 - Agent Name').agg({
+    top_buyer_agents = noralta_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
     }).nlargest(5, 'Listing ID #').reset_index()
@@ -420,17 +426,17 @@ def main():
     st.subheader("Agent Contribution")
 
     # Bar Chart: Total sales volume by agent
-    agent_sales_volume = noralta_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().reset_index()
+    agent_sales_volume = noralta_agents_data.groupby('Listing Agent 1 - Agent Name')['Sold Price'].sum().reset_index()
     fig_agent_sales = px.bar(
         agent_sales_volume,
         x='Listing Agent 1 - Agent Name',
         y='Sold Price',
-        title="Total Sales Volume by Agent"
+        title="Total Sales Volume by Agent (Noralta)"
     )
     st.plotly_chart(fig_agent_sales, use_container_width=True)
 
     # Stacked Bar Chart: Listing-side vs Buyer-side contributions
-    agent_contributions = noralta_data.groupby('Listing Agent 1 - Agent Name').agg({
+    agent_contributions = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Listing-side deals
         'Buyer Agent 1 - Agent Name': 'count'  # Buyer-side deals
     }).reset_index()
@@ -440,7 +446,7 @@ def main():
         agent_contributions,
         x='Agent Name',
         y=['Listing Deals', 'Buyer Deals'],
-        title="Listing vs Buyer Contributions by Agent",
+        title="Listing vs Buyer Contributions by Agent (Noralta)",
         labels={'value': 'Number of Deals', 'variable': 'Role'},
         barmode='stack'
     )
@@ -450,7 +456,7 @@ def main():
     st.subheader("Performance by Property Type")
 
     # Scatter Plot: Number of transactions vs average DOM by agent, categorized by property type
-    agent_property_performance = noralta_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
+    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
         'Listing ID #': 'count',  # Number of transactions
         'Days On Market': 'mean'  # Average DOM
     }).reset_index()
@@ -461,13 +467,13 @@ def main():
         x='Transactions',
         y='Average DOM',
         color='Property Type',
-        title="Transactions vs Average DOM by Agent and Property Type",
+        title="Transactions vs Average DOM by Agent and Property Type (Noralta)",
         labels={'Transactions': 'Number of Transactions', 'Average DOM': 'Average Days on Market'}
     )
     st.plotly_chart(fig_scatter, use_container_width=True)
 
     # Table: Property type preferences or expertise for each agent
-    st.write("**Property Type Preferences by Agent**")
+    st.write("**Property Type Preferences by Agent (Noralta)**")
     st.dataframe(agent_property_performance.pivot(index='Agent Name', columns='Property Type', values='Transactions'))
 
     # Section 5: Training and Support Insights
@@ -476,11 +482,11 @@ def main():
     # Identify underperforming agents
     underperforming_agents = agent_property_performance[
         (agent_property_performance['Transactions'] < avg_closed_deals) |  # Low deals
-        (agent_property_performance['Average DOM'] > noralta_data['Days On Market'].mean())  # High DOM
+        (agent_property_performance['Average DOM'] > noralta_agents_data['Days On Market'].mean())  # High DOM
     ]
 
     # Display underperforming agents
-    st.write("**Underperforming Agents**")
+    st.write("**Underperforming Agents (Noralta)**")
     st.dataframe(underperforming_agents)
 
     # Recommendations
