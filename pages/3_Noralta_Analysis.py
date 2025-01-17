@@ -205,16 +205,16 @@ def main():
     # Section 4: Trends Over Time
     st.subheader("Trends Over Time")
     monthly_sales = noralta_data.groupby(noralta_data['Sold Date'].dt.to_period('M')).agg({
-        'Sold Price': 'sum',
-        'Days On Market': 'mean'
+        'Listing ID #': 'count',  # Count of transactions (Total Sales)
+        'Days On Market': 'mean'  # Average DOM
     }).reset_index()
     monthly_sales['Sold Date'] = monthly_sales['Sold Date'].dt.to_timestamp()
 
     fig_trends = go.Figure()
     fig_trends.add_trace(go.Scatter(
         x=monthly_sales['Sold Date'],
-        y=monthly_sales['Sold Price'],
-        name='Sales Volume',
+        y=monthly_sales['Listing ID #'],  # Total Sales (count of transactions)
+        name='Total Sales',
         line=dict(color='blue')
     ))
     fig_trends.add_trace(go.Scatter(
@@ -225,9 +225,9 @@ def main():
         yaxis='y2'
     ))
     fig_trends.update_layout(
-        title='Monthly Sales Volume and DOM Trends',
+        title='Monthly Total Sales and DOM Trends',
         xaxis_title='Date',
-        yaxis_title='Sales Volume',
+        yaxis_title='Total Sales (Transactions)',  # Updated y-axis title
         yaxis2=dict(title='Average DOM', overlaying='y', side='right'),
         legend_title='Metric'
     )
