@@ -296,5 +296,28 @@ def main():
     )
     st.plotly_chart(fig_dom)
 
+    # Create CDF plot
+    fig_cdf = go.Figure()
+    fig_cdf.add_trace(go.Scatter(
+        x=noralta_dom.sort_values(),
+        y=np.arange(1, len(noralta_dom) + 1) / len(noralta_dom),
+        name='Noralta',
+        line=dict(color='blue')
+    ))
+    fig_cdf.add_trace(go.Scatter(
+        x=competitors_dom.sort_values(),
+        y=np.arange(1, len(competitors_dom) + 1) / len(competitors_dom),
+        name='Top 10 Competitors',
+        line=dict(color='orange')
+    ))
+    fig_cdf.update_layout(
+        title="Cumulative Distribution of DOM: Noralta vs Top 10 Competitors",
+        xaxis_title="Days on Market",
+    st.write("The above chart compares the cumulative distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
+        legend_title="Firm"
+    )
+    st.plotly_chart(fig_cdf)
+
+
 if __name__ == "__main__":
     main()
