@@ -406,9 +406,9 @@ def main():
     # Step 5: Display KPIs
     col1, col2 = st.columns(2)
     with col1:
-        st.metric("Average Number of Closed Deals per Agent (Noralta)", round(avg_closed_deals_per_agent, 1))
+        st.metric("Avg Closed Deals per #Active Agent (Noralta)", round(avg_closed_deals_per_agent, 1))
     with col2:
-        st.metric("Total Active Agents (Noralta)", total_active_agents)
+        st.metric("Date Range Total Active Agents (Noralta)", total_active_agents)
 
 
 
@@ -416,27 +416,27 @@ def main():
     # Section 2: Top Agents
     st.subheader("Top Agents")
 
-    # Top 5 Performing Agents (Listings)
+    # Top 10 Performing Agents (Listings)
     top_listing_agents = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
-    }).nlargest(5, 'Listing ID #').reset_index()
+    }).nlargest(10, 'Listing ID #').reset_index()
     top_listing_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
-    # Top 5 Performing Agents (Buyers)
+    # Top 10 Performing Agents (Buyers)
     top_buyer_agents = noralta_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
-    }).nlargest(5, 'Listing ID #').reset_index()
+    }).nlargest(10, 'Listing ID #').reset_index()
     top_buyer_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
     # Display tables
     col1, col2 = st.columns(2)
     with col1:
-        st.write("**Top 5 Performing Agents (Listings)**")
+        st.write("**Top 10 Performing Agents (Listings)**")
         st.dataframe(top_listing_agents)
     with col2:
-        st.write("**Top 5 Performing Agents (Buyers)**")
+        st.write("**Top 10 Performing Agents (Buyers)**")
         st.dataframe(top_buyer_agents)
 
 
