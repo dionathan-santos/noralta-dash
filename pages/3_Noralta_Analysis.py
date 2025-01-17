@@ -261,7 +261,7 @@ def main():
     buyer_percentage = (buyer_firm / total_transactions) * 100
 
     # Create bar chart
-    fig_contributions = px.bar(
+    fig_contributions = px.pie(
         x=['Listing Firm', 'Buyer Firm'],
         y=[listing_firm, buyer_firm],
         title="Listing Firm vs Buyer Firm Contributions",
@@ -273,54 +273,6 @@ def main():
     fig_contributions.update_traces(textposition='outside')
     st.plotly_chart(fig_contributions)
 
-    # Combine Noralta and top competitors data
-    noralta_dom = noralta_data['Days On Market']
-    competitors_dom = top_competitors_data['Days On Market']
-
-    # Create box plot
-    fig_dom = go.Figure()
-    fig_dom.add_trace(go.Box(
-        y=noralta_dom,
-        name='Noralta',
-        marker_color='blue'
-    ))
-    fig_dom.add_trace(go.Box(
-        y=competitors_dom,
-        name='Top 10 Competitors',
-        marker_color='orange'
-    ))
-    fig_dom.update_layout(
-        title="Distribution of DOM: Noralta vs Top 10 Competitors",
-        yaxis_title="Days on Market",
-        boxmode='group',
-        legend_title="Firm"
-    )
-    st.plotly_chart(fig_dom)
-
-    # Create CDF plot
-    fig_cdf = go.Figure()
-    fig_cdf.add_trace(go.Scatter(
-        x=noralta_dom.sort_values(),
-        y=np.arange(1, len(noralta_dom) + 1) / len(noralta_dom),
-        name='Noralta',
-        line=dict(color='blue')
-    ))
-    fig_cdf.add_trace(go.Scatter(
-        x=competitors_dom.sort_values(),
-        y=np.arange(1, len(competitors_dom) + 1) / len(competitors_dom),
-        name='Top 10 Competitors',
-        line=dict(color='orange')
-    ))
-    fig_cdf.update_layout(
-        title="Cumulative Distribution of DOM: Noralta vs Top 10 Competitors",
-        xaxis_title="Days on Market",
-        yaxis_title="Cumulative Probability",
-        legend_title="Firm"
-    )
-    st.plotly_chart(fig_cdf)
-
-    # Add a description for the CDF plot
-    st.write("The above chart compares the cumulative distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
 
 
 if __name__ == "__main__":
