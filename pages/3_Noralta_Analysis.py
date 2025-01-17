@@ -227,7 +227,7 @@ def main():
         name='Sales Volume',
         line=dict(color='blue')
     ))
-    st.write("The above violin plot compares the distribution of Days on Market (DOM) between Noralta and its top 10 competitors.")
+    fig_trends.add_trace(go.Scatter(
         x=monthly_sales['Sold Date'],
         y=monthly_sales['Days On Market'],
         name='Average DOM',
@@ -242,13 +242,6 @@ def main():
         legend_title='Metric'
     )
     st.plotly_chart(fig_trends)
-
-
-
-
-
-
-    
 
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
@@ -298,8 +291,6 @@ def main():
         legend_title="Firm"
     )
     st.plotly_chart(fig_dom)
-
-
 
 if __name__ == "__main__":
     main()
