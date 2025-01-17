@@ -480,9 +480,16 @@ def main():
     # Section 5: Training and Support Insights
     st.subheader("Training and Support Insights")
 
+    # Group data by agent and property type to calculate transactions and average DOM
+    agent_property_performance = noralta_agents_data.groupby(['Listing Agent 1 - Agent Name', 'Property Class']).agg({
+        'Listing ID #': 'count',  # Number of transactions
+        'Days On Market': 'mean'  # Average DOM
+    }).reset_index()
+    agent_property_performance.columns = ['Agent Name', 'Property Type', 'Transactions', 'Average DOM']
+
     # Identify underperforming agents
     underperforming_agents = agent_property_performance[
-        (agent_property_performance['Transactions'] < avg_closed_deals) |  # Low deals
+        (agent_property_performance['Transactions'] < avg_closed_deals_per_agent) |  # Low deals
         (agent_property_performance['Average DOM'] > noralta_agents_data['Days On Market'].mean())  # High DOM
     ]
 
@@ -494,7 +501,6 @@ def main():
     st.write("**Recommendations**")
     st.write("1. Provide training for agents in specific communities or property types where Noralta lags.")
     st.write("2. Identify opportunities to replicate strategies from top-performing agents.")
-
 
 
 if __name__ == "__main__":
