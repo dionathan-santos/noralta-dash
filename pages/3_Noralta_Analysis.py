@@ -246,6 +246,10 @@ def main():
     # Section 5: Efficiency Metrics
     st.subheader("Efficiency Metrics")
 
+    # Identify top 10 competitors by transaction count
+    top_competitors = filtered_data['Listing Firm 1 - Office Name'].value_counts().nlargest(10).index.tolist()
+    top_competitors_data = filtered_data[filtered_data['Listing Firm 1 - Office Name'].isin(top_competitors)].copy()
+
     # Bar Chart: Listing Firm vs Buyer Firm contributions
     listing_firm = len(noralta_data[noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
     buyer_firm = len(noralta_data[noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'])
