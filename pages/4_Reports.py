@@ -473,6 +473,7 @@ def main():
         with tab3:
             st.header("Forecasting")
             st.write("This section will show Machine Learning Forecasting for Trends and Predictions.")
+            st.write("All the Models will be made focusing on Noralta's needs.")
 
 if __name__ == "__main__":
     main()
