@@ -3,6 +3,9 @@ import pandas as pd
 import plotly.express as px
 from pymongo import MongoClient
 from datetime import datetime
+import streamlit as st
+import pandas as pd
+import plotly.express as px
 
 # MongoDB connection
 def get_mongodb_data(mongodb_uri, database_name, collection_name):
@@ -199,9 +202,7 @@ def main():
         st.write("**Analysis:** Add your analysis here.")
 
 
-        import streamlit as st
-        import pandas as pd
-        import plotly.express as px
+
 
         # Extract unique agent names from "Listing Agent 1 - Agent Name" and "Buyer Agent 1 - Agent Name"
         listing_agents = data['Listing Agent 1 - Agent Name'].dropna().unique()
@@ -217,8 +218,8 @@ def main():
         ]
 
         # Add a multi-select year filter for first appearance
-        st.sidebar.subheader("Filter by First Appearance Year")
-        selected_years = st.sidebar.multiselect(
+        st.subheader("Filter by First Appearance Year")
+        selected_years = st.multiselect(
             "Select Year(s) for First Appearance",
             options=[2021, 2022, 2023, 2024],  # Adjust based on your data
             default=[2021, 2022, 2023, 2024]   # Default to all years
