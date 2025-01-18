@@ -1,22 +1,19 @@
 import streamlit as st
+import pandas as pd
+import matplotlib.pyplot as plt
 
-# Load Streamlit secrets
-secret_key = st.secrets.get("TEST_PAGE_ACCESS_KEY")
+# Title and description
+st.title("Notebook-based Page")
+st.write("This page was created from a Jupyter Notebook.")
 
-# Ask for user input to match the secret key
-access_key = st.text_input("Enter the access key to view this page:", type="password")
+# Example DataFrame
+data = {'Category': ['A', 'B', 'C'], 'Values': [10, 20, 15]}
+df = pd.DataFrame(data)
+st.write("Here’s an example DataFrame:")
+st.dataframe(df)
 
-if access_key == secret_key:
-    # Title for the test page
-    st.title("Test Page")
-    st.write("Welcome! This page is only visible to you.")
-
-    # Sidebar content
-    st.sidebar.title("Navigation")
-    st.sidebar.write("This is the test page's sidebar.")
-
-    # Main content for the page
-    st.subheader("Testing Features")
-    st.write("You can use this page to test new features without affecting other users.")
-else:
-    st.write("Access denied. This page is under development and not available to others.")
+# Example plot
+fig, ax = plt.subplots()
+ax.bar(df['Category'], df['Values'])
+ax.set_ylabel('Values')
+st.pyplot(fig)
