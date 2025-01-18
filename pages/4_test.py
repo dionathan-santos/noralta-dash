@@ -254,6 +254,30 @@ def main():
         st.plotly_chart(fig8)
         st.write("**Analysis:** Add your analysis here.")
 
+        # List of cities to analyze
+        cities = ["Edmonton", "St. Albert", "Fort Saskatchewan", "Sherwood Park", "Spruce Grove"]
+
+        # Loop through each city and create a graph for its communities
+        for city in cities:
+            st.subheader(f"Top Communities in {city} Where Agents Performed Better (First Appearance: 2021-2024)")
+
+            # Filter data for the current city
+            city_data = agent_performance[agent_performance['Area/City'] == city]
+
+            # Group by community and count deals
+            top_communities = city_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
+
+            # Plot the top communities
+            fig = px.bar(
+                top_communities,
+                x='Community',
+                y='Deals',
+                title=f"Top Communities in {city} Where Agents Performed Better (First Appearance: 2021-2024)",
+                labels={'Community': 'Community', 'Deals': 'Number of Deals'}
+            )
+            st.plotly_chart(fig)
+            st.write(f"**Analysis for {city}:** Add your analysis here.")
+
         # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)
         st.subheader("Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)")
 
