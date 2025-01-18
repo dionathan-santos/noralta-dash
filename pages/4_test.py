@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 from pymongo import MongoClient
+from datetime import datetime
 
 # MongoDB connection
 def get_mongodb_data(mongodb_uri, database_name, collection_name):
@@ -53,125 +54,99 @@ def main():
         data['List Price'] = data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
         data['Total Flr Area (SF)'] = data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
 
+        # Filter data for the last 3 years
+        current_year = datetime.now().year
+        data['Year'] = data['Sold Date'].dt.year
+        last_3_years_data = data[data['Year'] >= (current_year - 2)]
+
         #### Market Trends
         st.header("Market Trends")
 
-        # Volume of Transactions by Property Class
-        st.subheader("Volume of Transactions by Property Class")
-        col1, col2 = st.columns(2)
+        # Volume of Transactions by Property Class (Last 3 Years)
+        st.subheader("Volume of Transactions by Property Class (Last 3 Years)")
+        volume_data = last_3_years_data.groupby(['Year', 'Property Class']).size().reset_index(name='Count')
+        volume_data = volume_data[volume_data['Property Class'].isin(['Condo', 'Single-Family'])]
+        fig1 = px.bar(
+            volume_data,
+            x='Year',
+            y='Count',
+            color='Property Class',
+            barmode='group',
+            title="Volume of Transactions by Property Class (Last 3 Years)"
+        )
+        st.plotly_chart(fig1)
+        st.write("**Analysis:** Add your analysis here.")
 
-        with col1:
-            st.write("**Edmonton Only**")
-            edmonton_data = data[data['Area/City'] == 'Edmonton']
-            fig1 = px.bar(
-                edmonton_data.groupby('Property Class').size().reset_index(name='Count'),
-                x='Property Class',
-                y='Count',
-                title="Volume of Transactions (Edmonton)"
-            )
-            st.plotly_chart(fig1)
-            st.write("**Analysis:** Add your analysis here.")
+        # Average Sold Prices vs. List Prices (2024 Only)
+        st.subheader("Average Sold Prices vs. List Prices (2024 Only)")
+        data_2024 = data[data['Year'] == 2024]
+        fig2 = px.line(
+            data_2024.groupby('Sold Date').agg({'Sold Price': 'mean', 'List Price': 'mean'}).reset_index(),
+            x='Sold Date',
+            y=['Sold Price', 'List Price'],
+            title="Average Sold vs List Prices (2024)"
+        )
+        st.plotly_chart(fig2)
+        st.write("**Analysis:** Add your analysis here.")
 
-        with col2:
-            st.write("**Greater Edmonton**")
-            greater_edmonton_data = data[data['Area/City'].isin(['Edmonton', 'Other Areas'])]
-            fig2 = px.bar(
-                greater_edmonton_data.groupby('Property Class').size().reset_index(name='Count'),
-                x='Property Class',
-                y='Count',
-                title="Volume of Transactions (Greater Edmonton)"
-            )
-            st.plotly_chart(fig2)
-            st.write("**Analysis:** Add your analysis here.")
-
-        # Average Sold Prices vs. List Prices
-        st.subheader("Average Sold Prices vs. List Prices")
-        col3, col4 = st.columns(2)
-
-        with col3:
-            st.write("**Edmonton Only**")
-            fig3 = px.line(
-                edmonton_data.groupby('Sold Date').agg({'Sold Price': 'mean', 'List Price': 'mean'}).reset_index(),
-                x='Sold Date',
-                y=['Sold Price', 'List Price'],
-                title="Average Sold vs List Prices (Edmonton)"
-            )
-            st.plotly_chart(fig3)
-            st.write("**Analysis:** Add your analysis here.")
-
-        with col4:
-            st.write("**Greater Edmonton**")
-            fig4 = px.line(
-                greater_edmonton_data.groupby('Sold Date').agg({'Sold Price': 'mean', 'List Price': 'mean'}).reset_index(),
-                x='Sold Date',
-                y=['Sold Price', 'List Price'],
-                title="Average Sold vs List Prices (Greater Edmonton)"
-            )
-            st.plotly_chart(fig4)
-            st.write("**Analysis:** Add your analysis here.")
-
-        # Days on Market (DOM) Analysis
-        st.subheader("Days on Market (DOM) Analysis")
-        col5, col6 = st.columns(2)
-
-        with col5:
-            st.write("**Edmonton Only**")
-            fig5 = px.bar(
-                edmonton_data.groupby('Property Class')['Days On Market'].mean().reset_index(),
-                x='Property Class',
-                y='Days On Market',
-                title="Average DOM by Property Class (Edmonton)"
-            )
-            st.plotly_chart(fig5)
-            st.write("**Analysis:** Add your analysis here.")
-
-        with col6:
-            st.write("**Greater Edmonton**")
-            fig6 = px.bar(
-                greater_edmonton_data.groupby('Property Class')['Days On Market'].mean().reset_index(),
-                x='Property Class',
-                y='Days On Market',
-                title="Average DOM by Property Class (Greater Edmonton)"
-            )
-            st.plotly_chart(fig6)
-            st.write("**Analysis:** Add your analysis here.")
+        # Days on Market (DOM) Analysis (Last 3 Years)
+        st.subheader("Days on Market (DOM) Analysis (Last 3 Years)")
+        dom_data = last_3_years_data.groupby(['Year', 'Property Class'])['Days On Market'].mean().reset_index()
+        dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single-Family'])]
+        fig3 = px.bar(
+            dom_data,
+            x='Year',
+            y='Days On Market',
+            color='Property Class',
+            barmode='group',
+            title="Average DOM by Property Class (Last 3 Years)"
+        )
+        st.plotly_chart(fig3)
+        st.write("**Analysis:** Add your analysis here.")
 
         #### Geographical Insights
         st.header("Geographical Insights")
 
         # Performance by Area/Community
         st.subheader("Performance by Area/Community")
-        areas = sorted(data['Community'].dropna().unique())
-        selected_areas = st.multiselect("Select Areas/Communities", areas, default=areas[:2])
+        col1, col2 = st.columns(2)
 
-        if selected_areas:
-            area_data = data[data['Community'].isin(selected_areas)]
-            fig7 = px.line(
+        with col1:
+            cities = sorted(data['Area/City'].dropna().unique())
+            selected_city = st.selectbox("Select City", cities)
+
+        with col2:
+            communities = sorted(data[data['Area/City'] == selected_city]['Community'].dropna().unique())
+            selected_communities = st.multiselect("Select Communities", communities, default=communities[:2])
+
+        if selected_communities:
+            area_data = data[(data['Area/City'] == selected_city) & (data['Community'].isin(selected_communities))]
+            fig4 = px.line(
                 area_data.groupby(['Community', 'Sold Date']).size().reset_index(name='Count'),
                 x='Sold Date',
                 y='Count',
                 color='Community',
-                title="Sales Volume by Area/Community"
+                title=f"Sales Volume by Community in {selected_city}"
             )
-            st.plotly_chart(fig7)
+            st.plotly_chart(fig4)
             st.write("**Analysis:** Add your analysis here.")
 
-        # Top 10 Neighbourhoods in Edmonton
-        st.subheader("Top 10 Neighbourhoods in Edmonton")
-        edmonton_neighbourhoods = data[data['Area/City'] == 'Edmonton']
+        # Top 10 Neighbourhoods in Edmonton (2024 Only)
+        st.subheader("Top 10 Neighbourhoods in Edmonton (2024 Only)")
+        edmonton_neighbourhoods = data[(data['Area/City'] == 'Edmonton') & (data['Year'] == 2024)]
         top_neighbourhoods = edmonton_neighbourhoods.groupby('Community').agg(
             Avg_Price=('Sold Price', 'mean'),
             Demand=('Sold Date', 'count')
         ).reset_index().sort_values(by='Demand', ascending=False).head(10)
 
-        fig8 = px.scatter(
+        fig5 = px.scatter(
             top_neighbourhoods,
             x='Avg_Price',
             y='Demand',
             text='Community',
-            title="Top 10 Neighbourhoods by Average Price and Demand"
+            title="Top 10 Neighbourhoods by Average Price and Demand (2024)"
         )
-        st.plotly_chart(fig8)
+        st.plotly_chart(fig5)
         st.write("**Analysis:** Add your analysis here.")
 
     # Content for the "Forecasting" tab
