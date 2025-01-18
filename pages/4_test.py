@@ -198,17 +198,48 @@ def main():
         st.plotly_chart(fig7)
         st.write("**Analysis:** Add your analysis here.")
 
-        # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance from 2021 to 2024)
-        st.subheader("Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)")
+        
+
+        # Extract unique agent names from "Listing Agent 1 - Agent Name" and "Buyer Agent 1 - Agent Name"
+        listing_agents = data['Listing Agent 1 - Agent Name'].dropna().unique()
+        buyer_agents = data['Buyer Agent 1 - Agent Name'].dropna().unique()
+
+        # Merge and deduplicate agent names
+        all_agents = pd.Series(list(listing_agents) + list(buyer_agents)).drop_duplicates().tolist()
+
+        # Create a DataFrame to track agent performance
+        agent_performance_data = data[
+            (data['Listing Agent 1 - Agent Name'].isin(all_agents)) | 
+            (data['Buyer Agent 1 - Agent Name'].isin(all_agents))
+        ]
 
         # Filter agents who made their first appearance between 2021 and 2024
-        data['Year'] = data['Sold Date'].dt.year
-        first_appearance_data = data[data['Year'].between(2021, 2024)]
-        first_appearance_agents = first_appearance_data.groupby('Agent Name')['Sold Date'].min().reset_index()
+        agent_performance_data['Year'] = agent_performance_data['Sold Date'].dt.year
+        first_appearance_data = agent_performance_data[agent_performance_data['Year'].between(2021, 2024)]
+
+        # Get the first appearance date for each agent
+        first_appearance_agents = pd.concat([
+            first_appearance_data.groupby('Listing Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'}),
+            first_appearance_data.groupby('Buyer Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
+        ]).drop_duplicates()
 
         # Merge with the main data to get all deals by these agents
-        agent_performance = pd.merge(data, first_appearance_agents, on='Agent Name', suffixes=('', '_first'))
-        agent_performance = agent_performance[agent_performance['Sold Date'] >= agent_performance['Sold Date_first']]
+        agent_performance = pd.merge(
+            agent_performance_data,
+            first_appearance_agents,
+            left_on=['Listing Agent 1 - Agent Name', 'Buyer Agent 1 - Agent Name'],
+            right_on=['Agent Name', 'Agent Name'],
+            how='inner'
+        )
+
+        # Filter deals after the agent's first appearance
+        agent_performance = agent_performance[
+            (agent_performance['Sold Date'] >= agent_performance['Sold Date_x']) | 
+            (agent_performance['Sold Date'] >= agent_performance['Sold Date_y'])
+        ]
+
+        # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)
+        st.subheader("Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)")
 
         # Group by region and count deals
         top_regions = agent_performance.groupby('Area/City').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
@@ -224,7 +255,7 @@ def main():
         st.plotly_chart(fig8)
         st.write("**Analysis:** Add your analysis here.")
 
-        # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance from 2021 to 2024)
+        # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)
         st.subheader("Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)")
 
         # Group by property type and count deals
@@ -240,12 +271,6 @@ def main():
         )
         st.plotly_chart(fig9)
         st.write("**Analysis:** Add your analysis here.")
-
-    # Content for the "Forecasting" tab
-    with tab3:
-        st.header("Forecasting")
-        st.write("This section will provide forecasts for future agent performance and market trends.")
-        # Add your forecasting content here (e.g., predictive models, trends, etc.)
 
 if __name__ == "__main__":
     main()
