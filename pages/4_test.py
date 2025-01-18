@@ -471,7 +471,7 @@ def main():
         st.write("**Analysis:** Add your analysis here.")
 
         with tab3:
-        st.header("Forecasting
+        st.header("Forecasting")
         st.write("This section will show Machine Learning Forecasting for Trends and Predictions.")
 
 if __name__ == "__main__":
