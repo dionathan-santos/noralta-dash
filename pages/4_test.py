@@ -58,17 +58,18 @@ def main():
         current_year = datetime.now().year
         data['Year'] = data['Sold Date'].dt.year
         last_3_years_data = data[data['Year'] >= (current_year - 2)]
+        last_3_years_data['Month'] = last_3_years_data['Sold Date'].dt.to_period('M').astype(str)
 
         #### Market Trends
         st.header("Market Trends")
 
-        # Volume of Transactions by Property Class (Last 3 Years) - Line Chart
+        # Volume of Transactions by Property Class (Last 3 Years) - Line Chart (Monthly)
         st.subheader("Volume of Transactions by Property Class (Last 3 Years)")
-        volume_data = last_3_years_data.groupby(['Year', 'Property Class']).size().reset_index(name='Count')
+        volume_data = last_3_years_data.groupby(['Month', 'Property Class']).size().reset_index(name='Count')
         volume_data = volume_data[volume_data['Property Class'].isin(['Condo', 'Single Family'])]
         fig1 = px.line(
             volume_data,
-            x='Year',
+            x='Month',
             y='Count',
             color='Property Class',
             title="Volume of Transactions by Property Class (Last 3 Years)"
@@ -76,14 +77,14 @@ def main():
         st.plotly_chart(fig1)
         st.write("**Analysis:** Add your analysis here.")
 
-        # Volume of Transactions by Total Sqft (Single-Family Only)
+        # Volume of Transactions by Total Sqft (Single-Family Only) - Line Chart (Monthly)
         st.subheader("Volume of Transactions by Total Sqft (Single-Family Only)")
         single_family_data = last_3_years_data[last_3_years_data['Property Class'] == 'Single Family']
         single_family_data['Sqft Range'] = pd.cut(single_family_data['Total Flr Area (SF)'], bins=range(0, 5001, 500))
-        sqft_data = single_family_data.groupby(['Year', 'Sqft Range']).size().reset_index(name='Count')
+        sqft_data = single_family_data.groupby(['Month', 'Sqft Range']).size().reset_index(name='Count')
         fig2 = px.line(
             sqft_data,
-            x='Year',
+            x='Month',
             y='Count',
             color='Sqft Range',
             title="Volume of Transactions by Total Sqft (Single-Family Only)"
@@ -91,12 +92,12 @@ def main():
         st.plotly_chart(fig2)
         st.write("**Analysis:** Add your analysis here.")
 
-        # Volume of Transactions by Total Bedrooms (Single-Family Only)
+        # Volume of Transactions by Total Bedrooms (Single-Family Only) - Line Chart (Monthly)
         st.subheader("Volume of Transactions by Total Bedrooms (Single-Family Only)")
-        bedroom_data = single_family_data.groupby(['Year', 'Total Bedrooms']).size().reset_index(name='Count')
+        bedroom_data = single_family_data.groupby(['Month', 'Total Bedrooms']).size().reset_index(name='Count')
         fig3 = px.line(
             bedroom_data,
-            x='Year',
+            x='Month',
             y='Count',
             color='Total Bedrooms',
             title="Volume of Transactions by Total Bedrooms (Single-Family Only)"
@@ -117,13 +118,13 @@ def main():
         st.plotly_chart(fig4)
         st.write("**Analysis:** Add your analysis here.")
 
-        # Days on Market (DOM) Analysis (Last 3 Years) - Line Chart with Tooltip
+        # Days on Market (DOM) Analysis (Last 3 Years) - Line Chart with Tooltip (Monthly)
         st.subheader("Days on Market (DOM) Analysis (Last 3 Years)")
-        dom_data = last_3_years_data.groupby(['Year', 'Property Class'])['Days On Market'].mean().reset_index()
+        dom_data = last_3_years_data.groupby(['Month', 'Property Class'])['Days On Market'].mean().reset_index()
         dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single Family'])]
         fig5 = px.line(
             dom_data,
-            x='Year',
+            x='Month',
             y='Days On Market',
             color='Property Class',
             title="Average DOM by Property Class (Last 3 Years)",
@@ -142,7 +143,8 @@ def main():
 
         with col1:
             cities = sorted(data['Area/City'].dropna().unique())
-            selected_cities = st.multiselect("Select Cities", cities, default=cities[:1])
+            # Default to Edmonton
+            selected_cities = st.multiselect("Select Cities", cities, default=['Edmonton'])
 
         with col2:
             communities = sorted(data[data['Area/City'].isin(selected_cities)]['Community'].dropna().unique())
