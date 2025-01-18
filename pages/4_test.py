@@ -89,16 +89,15 @@ def main():
         st.plotly_chart(fig2)
         st.write("**Analysis:** Add your analysis here.")
 
-        # Days on Market (DOM) Analysis (Last 3 Years)
+        # Days on Market (DOM) Analysis (Last 3 Years) - Line Chart
         st.subheader("Days on Market (DOM) Analysis (Last 3 Years)")
         dom_data = last_3_years_data.groupby(['Year', 'Property Class'])['Days On Market'].mean().reset_index()
         dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single-Family'])]
-        fig3 = px.bar(
+        fig3 = px.line(
             dom_data,
             x='Year',
             y='Days On Market',
             color='Property Class',
-            barmode='group',
             title="Average DOM by Property Class (Last 3 Years)"
         )
         st.plotly_chart(fig3)
@@ -113,20 +112,23 @@ def main():
 
         with col1:
             cities = sorted(data['Area/City'].dropna().unique())
-            selected_city = st.selectbox("Select City", cities)
+            selected_cities = st.multiselect("Select Cities", cities, default=cities[:1])
 
         with col2:
-            communities = sorted(data[data['Area/City'] == selected_city]['Community'].dropna().unique())
+            communities = sorted(data[data['Area/City'].isin(selected_cities)]['Community'].dropna().unique())
             selected_communities = st.multiselect("Select Communities", communities, default=communities[:2])
 
-        if selected_communities:
-            area_data = data[(data['Area/City'] == selected_city) & (data['Community'].isin(selected_communities))]
+        if selected_cities and selected_communities:
+            area_data = data[(data['Area/City'].isin(selected_cities)) & (data['Community'].isin(selected_communities))]
+            area_data['Month'] = area_data['Sold Date'].dt.to_period('M').astype(str)
+            monthly_deals = area_data.groupby(['Area/City', 'Community', 'Month']).size().reset_index(name='Deals')
+
             fig4 = px.line(
-                area_data.groupby(['Community', 'Sold Date']).size().reset_index(name='Count'),
-                x='Sold Date',
-                y='Count',
+                monthly_deals,
+                x='Month',
+                y='Deals',
                 color='Community',
-                title=f"Sales Volume by Community in {selected_city}"
+                title=f"Monthly Deals by Community in {', '.join(selected_cities)}"
             )
             st.plotly_chart(fig4)
             st.write("**Analysis:** Add your analysis here.")
