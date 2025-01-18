@@ -65,7 +65,7 @@ def main():
         # Volume of Transactions by Property Class (Last 3 Years) - Line Chart
         st.subheader("Volume of Transactions by Property Class (Last 3 Years)")
         volume_data = last_3_years_data.groupby(['Year', 'Property Class']).size().reset_index(name='Count')
-        volume_data = volume_data[volume_data['Property Class'].isin(['Condo', 'Single-Family'])]
+        volume_data = volume_data[volume_data['Property Class'].isin(['Condo', 'Single Family'])]
         fig1 = px.line(
             volume_data,
             x='Year',
@@ -78,7 +78,7 @@ def main():
 
         # Volume of Transactions by Total Sqft (Single-Family Only)
         st.subheader("Volume of Transactions by Total Sqft (Single-Family Only)")
-        single_family_data = last_3_years_data[last_3_years_data['Property Class'] == 'Single-Family']
+        single_family_data = last_3_years_data[last_3_years_data['Property Class'] == 'Single Family']
         single_family_data['Sqft Range'] = pd.cut(single_family_data['Total Flr Area (SF)'], bins=range(0, 5001, 500))
         sqft_data = single_family_data.groupby(['Year', 'Sqft Range']).size().reset_index(name='Count')
         fig2 = px.line(
@@ -120,7 +120,7 @@ def main():
         # Days on Market (DOM) Analysis (Last 3 Years) - Line Chart with Tooltip
         st.subheader("Days on Market (DOM) Analysis (Last 3 Years)")
         dom_data = last_3_years_data.groupby(['Year', 'Property Class'])['Days On Market'].mean().reset_index()
-        dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single-Family'])]
+        dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single Family'])]
         fig5 = px.line(
             dom_data,
             x='Year',
