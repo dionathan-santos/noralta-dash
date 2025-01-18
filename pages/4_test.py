@@ -198,6 +198,49 @@ def main():
         st.plotly_chart(fig7)
         st.write("**Analysis:** Add your analysis here.")
 
+        # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance from 2021 to 2024)
+        st.subheader("Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)")
+
+        # Filter agents who made their first appearance between 2021 and 2024
+        data['Year'] = data['Sold Date'].dt.year
+        first_appearance_data = data[data['Year'].between(2021, 2024)]
+        first_appearance_agents = first_appearance_data.groupby('Agent Name')['Sold Date'].min().reset_index()
+
+        # Merge with the main data to get all deals by these agents
+        agent_performance = pd.merge(data, first_appearance_agents, on='Agent Name', suffixes=('', '_first'))
+        agent_performance = agent_performance[agent_performance['Sold Date'] >= agent_performance['Sold Date_first']]
+
+        # Group by region and count deals
+        top_regions = agent_performance.groupby('Area/City').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
+
+        # Plot the top 10 regions
+        fig8 = px.bar(
+            top_regions,
+            x='Area/City',
+            y='Deals',
+            title="Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)",
+            labels={'Area/City': 'Region', 'Deals': 'Number of Deals'}
+        )
+        st.plotly_chart(fig8)
+        st.write("**Analysis:** Add your analysis here.")
+
+        # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance from 2021 to 2024)
+        st.subheader("Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)")
+
+        # Group by property type and count deals
+        top_property_types = agent_performance.groupby('Property Class').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False)
+
+        # Plot the top property types
+        fig9 = px.bar(
+            top_property_types,
+            x='Property Class',
+            y='Deals',
+            title="Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)",
+            labels={'Property Class': 'Property Type', 'Deals': 'Number of Deals'}
+        )
+        st.plotly_chart(fig9)
+        st.write("**Analysis:** Add your analysis here.")
+
     # Content for the "Forecasting" tab
     with tab3:
         st.header("Forecasting")
