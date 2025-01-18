@@ -4,8 +4,11 @@ import streamlit as st
 user_info = st.experimental_user
 email = user_info["email"] if user_info else None
 
+# Debugging: Print user info to check your email (useful for the first time)
+st.write("Logged-in user info:", user_info)
+
 # Check if the logged-in user is you
-if email == "dionathan@royallepage.ca":  # Replace with your email
+if email == "your-github-email@example.com":  # Replace with your GitHub email
     # Title for the test page
     st.title("Test Page")
     st.write("Welcome! This page is only visible to you.")
