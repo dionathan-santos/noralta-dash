@@ -4,7 +4,7 @@ import streamlit as st
 st.set_page_config(
     page_title="Noralta Dashboard",
     page_icon=None,
-    layout="wide",
+    layout="wide", 
 )
 
 st.title("Welcome to the Noralta Dashboard!")
