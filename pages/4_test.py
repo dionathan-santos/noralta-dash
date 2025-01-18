@@ -5,7 +5,7 @@ user_info = st.experimental_user
 email = user_info["email"] if user_info else None
 
 # Check if the logged-in user is you
-if email == "dionathan.adiel@live.com":  # Replace with your email
+if email == "dionathan@royallepage.ca":  # Replace with your email
     # Title for the test page
     st.title("Test Page")
     st.write("Welcome! This page is only visible to you.")
