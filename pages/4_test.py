@@ -8,7 +8,7 @@ email = user_info["email"] if user_info else None
 st.write("Logged-in user info:", user_info)
 
 # Check if the logged-in user is you
-if email == "dionathan@royalllepage.ca":  # Replace with your GitHub email
+if email == "dionathan.adiel@live.com":  # Replace with your GitHub email
     # Title for the test page
     st.title("Test Page")
     st.write("Welcome! This page is only visible to you.")
