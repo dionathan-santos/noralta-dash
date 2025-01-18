@@ -198,7 +198,6 @@ def main():
         st.plotly_chart(fig7)
         st.write("**Analysis:** Add your analysis here.")
 
-        
 
         # Extract unique agent names from "Listing Agent 1 - Agent Name" and "Buyer Agent 1 - Agent Name"
         listing_agents = data['Listing Agent 1 - Agent Name'].dropna().unique()
@@ -209,7 +208,7 @@ def main():
 
         # Create a DataFrame to track agent performance
         agent_performance_data = data[
-            (data['Listing Agent 1 - Agent Name'].isin(all_agents)) | 
+            (data['Listing Agent 1 - Agent Name'].isin(all_agents)) |
             (data['Buyer Agent 1 - Agent Name'].isin(all_agents))
         ]
 
@@ -218,10 +217,11 @@ def main():
         first_appearance_data = agent_performance_data[agent_performance_data['Year'].between(2021, 2024)]
 
         # Get the first appearance date for each agent
-        first_appearance_agents = pd.concat([
-            first_appearance_data.groupby('Listing Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'}),
-            first_appearance_data.groupby('Buyer Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name'})
-        ]).drop_duplicates()
+        first_appearance_listing = first_appearance_data.groupby('Listing Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name', 'Sold Date': 'First Appearance Date'})
+        first_appearance_buyer = first_appearance_data.groupby('Buyer Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Buyer Agent 1 - Agent Name': 'Agent Name', 'Sold Date': 'First Appearance Date'})
+
+        # Combine first appearance dates for listing and buyer agents
+        first_appearance_agents = pd.concat([first_appearance_listing, first_appearance_buyer]).drop_duplicates(subset=['Agent Name'])
 
         # Merge with the main data to get all deals by these agents
         agent_performance = pd.merge(
@@ -234,8 +234,7 @@ def main():
 
         # Filter deals after the agent's first appearance
         agent_performance = agent_performance[
-            (agent_performance['Sold Date'] >= agent_performance['Sold Date_x']) | 
-            (agent_performance['Sold Date'] >= agent_performance['Sold Date_y'])
+            (agent_performance['Sold Date'] >= agent_performance['First Appearance Date'])
         ]
 
         # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)
