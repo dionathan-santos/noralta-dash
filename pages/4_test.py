@@ -199,6 +199,10 @@ def main():
         st.write("**Analysis:** Add your analysis here.")
 
 
+        import streamlit as st
+        import pandas as pd
+        import plotly.express as px
+
         # Extract unique agent names from "Listing Agent 1 - Agent Name" and "Buyer Agent 1 - Agent Name"
         listing_agents = data['Listing Agent 1 - Agent Name'].dropna().unique()
         buyer_agents = data['Buyer Agent 1 - Agent Name'].dropna().unique()
@@ -212,9 +216,17 @@ def main():
             (data['Buyer Agent 1 - Agent Name'].isin(all_agents))
         ]
 
-        # Filter agents who made their first appearance between 2021 and 2024
+        # Add a multi-select year filter for first appearance
+        st.sidebar.subheader("Filter by First Appearance Year")
+        selected_years = st.sidebar.multiselect(
+            "Select Year(s) for First Appearance",
+            options=[2021, 2022, 2023, 2024],  # Adjust based on your data
+            default=[2021, 2022, 2023, 2024]   # Default to all years
+        )
+
+        # Filter agents who made their first appearance in the selected years
         agent_performance_data['Year'] = agent_performance_data['Sold Date'].dt.year
-        first_appearance_data = agent_performance_data[agent_performance_data['Year'].between(2021, 2024)]
+        first_appearance_data = agent_performance_data[agent_performance_data['Year'].isin(selected_years)]
 
         # Get the first appearance date for each agent
         first_appearance_listing = first_appearance_data.groupby('Listing Agent 1 - Agent Name')['Sold Date'].min().reset_index().rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name', 'Sold Date': 'First Appearance Date'})
@@ -237,8 +249,8 @@ def main():
             (agent_performance['Sold Date'] >= agent_performance['First Appearance Date'])
         ]
 
-        # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)
-        st.subheader("Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)")
+        # New Graph 1: Top 10 Regions Where Agents Performed Better (First Appearance: Selected Years)
+        st.subheader(f"Top 10 Regions Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})")
 
         # Group by region and count deals
         top_regions = agent_performance.groupby('Area/City').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
@@ -248,7 +260,7 @@ def main():
             top_regions,
             x='Area/City',
             y='Deals',
-            title="Top 10 Regions Where Agents Performed Better (First Appearance: 2021-2024)",
+            title=f"Top 10 Regions Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})",
             labels={'Area/City': 'Region', 'Deals': 'Number of Deals'}
         )
         st.plotly_chart(fig8)
@@ -259,7 +271,7 @@ def main():
 
         # Loop through each city and create a graph for its communities
         for city in cities:
-            st.subheader(f"Top Communities in {city} Where Agents Performed Better (First Appearance: 2021-2024)")
+            st.subheader(f"Top Communities in {city} Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})")
 
             # Filter data for the current city
             city_data = agent_performance[agent_performance['Area/City'] == city]
@@ -272,14 +284,14 @@ def main():
                 top_communities,
                 x='Community',
                 y='Deals',
-                title=f"Top Communities in {city} Where Agents Performed Better (First Appearance: 2021-2024)",
+                title=f"Top Communities in {city} Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})",
                 labels={'Community': 'Community', 'Deals': 'Number of Deals'}
             )
             st.plotly_chart(fig)
             st.write(f"**Analysis for {city}:** Add your analysis here.")
 
-        # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)
-        st.subheader("Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)")
+        # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance: Selected Years)
+        st.subheader(f"Top Property Types Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})")
 
         # Group by property type and count deals
         top_property_types = agent_performance.groupby('Property Class').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False)
@@ -289,7 +301,7 @@ def main():
             top_property_types,
             x='Property Class',
             y='Deals',
-            title="Top Property Types Where Agents Performed Better (First Appearance: 2021-2024)",
+            title=f"Top Property Types Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})",
             labels={'Property Class': 'Property Type', 'Deals': 'Number of Deals'}
         )
         st.plotly_chart(fig9)
