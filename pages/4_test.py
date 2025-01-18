@@ -30,10 +30,172 @@ def main():
     tab1, tab2, tab3 = st.tabs(["Monthly Report", "2024 Market Performance", "Forecasting"])
 
     # Content for the "Monthly Report" tab
+
     with tab1:
         st.header("Monthly Report")
-        st.write("This section will display monthly performance metrics for agents.")
-        # Add your monthly report content here (e.g., charts, tables, etc.)
+        st.write("This section compares performance metrics for November 2024 and December 2024.")
+
+        # MongoDB connection
+        mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+        database_name = "real_estate"
+        collection_name = "listings"
+
+        # Fetch data
+        data = get_mongodb_data(mongodb_uri, database_name, collection_name)
+        if data.empty:
+            st.error("No data available!")
+            return
+
+        # Data preprocessing
+        data['Sold Date'] = pd.to_datetime(data['Sold Date'])
+        data['Sold Price'] = data['Sold Price'].str.replace('$', '').str.replace(',', '').astype(float)
+        data['List Price'] = data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
+        data['Total Flr Area (SF)'] = data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
+
+        # Filter data for November and December 2024
+        monthly_data = data[(data['Sold Date'].dt.year == 2024) & (data['Sold Date'].dt.month.isin([11, 12]))]
+        monthly_data['Month'] = monthly_data['Sold Date'].dt.month_name()
+
+        #### Market Trends
+        st.header("Market Trends (November vs December 2024)")
+
+        # Volume of Transactions by Property Class - Bar Chart
+        st.subheader("Volume of Transactions by Property Class")
+        volume_data = monthly_data.groupby(['Month', 'Property Class']).size().reset_index(name='Count')
+        volume_data = volume_data[volume_data['Property Class'].isin(['Condo', 'Single Family'])]
+        fig1 = px.bar(
+            volume_data,
+            x='Month',
+            y='Count',
+            color='Property Class',
+            title="Volume of Transactions by Property Class (November vs December 2024)",
+            barmode='group'
+        )
+        st.plotly_chart(fig1)
+        st.write("**Analysis:** Add your analysis here.")
+
+        # Volume of Transactions by Total Sqft (Single-Family Only) - Bar Chart
+        st.subheader("Volume of Transactions by Total Sqft (Single-Family Only)")
+        single_family_data = monthly_data[monthly_data['Property Class'] == 'Single Family']
+        single_family_data['Sqft Range'] = pd.cut(single_family_data['Total Flr Area (SF)'], bins=range(0, 5001, 500))
+        sqft_data = single_family_data.groupby(['Month', 'Sqft Range']).size().reset_index(name='Count')
+        fig2 = px.bar(
+            sqft_data,
+            x='Month',
+            y='Count',
+            color='Sqft Range',
+            title="Volume of Transactions by Total Sqft (Single-Family Only)",
+            barmode='group'
+        )
+        st.plotly_chart(fig2)
+        st.write("**Analysis:** Add your analysis here.")
+
+        # Volume of Transactions by Total Bedrooms (Single-Family Only) - Bar Chart
+        st.subheader("Volume of Transactions by Total Bedrooms (Single-Family Only)")
+        bedroom_data = single_family_data.groupby(['Month', 'Total Bedrooms']).size().reset_index(name='Count')
+        fig3 = px.bar(
+            bedroom_data,
+            x='Month',
+            y='Count',
+            color='Total Bedrooms',
+            title="Volume of Transactions by Total Bedrooms (Single-Family Only)",
+            barmode='group'
+        )
+        st.plotly_chart(fig3)
+        st.write("**Analysis:** Add your analysis here.")
+
+        # Average Sold Prices vs. List Prices - Line Chart
+        st.subheader("Average Sold Prices vs. List Prices")
+        price_data = monthly_data.groupby('Month').agg({'Sold Price': 'mean', 'List Price': 'mean'}).reset_index()
+        fig4 = px.line(
+            price_data,
+            x='Month',
+            y=['Sold Price', 'List Price'],
+            title="Average Sold vs List Prices (November vs December 2024)",
+            color_discrete_map={'Sold Price': 'red', 'List Price': 'blue'}
+        )
+        st.plotly_chart(fig4)
+        st.write("**Analysis:** Add your analysis here.")
+
+        # Days on Market (DOM) Analysis - Bar Chart
+        st.subheader("Days on Market (DOM) Analysis")
+        dom_data = monthly_data.groupby(['Month', 'Property Class'])['Days On Market'].mean().reset_index()
+        dom_data = dom_data[dom_data['Property Class'].isin(['Condo', 'Single Family'])]
+        fig5 = px.bar(
+            dom_data,
+            x='Month',
+            y='Days On Market',
+            color='Property Class',
+            title="Average DOM by Property Class (November vs December 2024)",
+            barmode='group'
+        )
+        st.plotly_chart(fig5)
+        st.write("**Analysis:** Add your analysis here.")
+
+        #### Geographical Insights
+        st.header("Geographical Insights (November vs December 2024)")
+
+        # Performance by Area/Community
+        st.subheader("Performance by Area/Community")
+        col1, col2 = st.columns(2)
+
+        with col1:
+            cities = sorted(monthly_data['Area/City'].dropna().unique())
+            # Default to Edmonton
+            selected_cities = st.multiselect("Select Cities", cities, default=['Edmonton'])
+
+        with col2:
+            communities = sorted(monthly_data[monthly_data['Area/City'].isin(selected_cities)]['Community'].dropna().unique())
+            selected_communities = st.multiselect("Select Communities", communities, default=communities[:2])
+
+        if selected_cities:
+            area_data = monthly_data[monthly_data['Area/City'].isin(selected_cities)]
+            if selected_communities:
+                area_data = area_data[area_data['Community'].isin(selected_communities)]
+            monthly_deals = area_data.groupby(['Area/City', 'Community', 'Month']).size().reset_index(name='Deals')
+
+            if selected_communities:
+                fig6 = px.bar(
+                    monthly_deals,
+                    x='Month',
+                    y='Deals',
+                    color='Community',
+                    title=f"Monthly Deals by Community in {', '.join(selected_cities)}",
+                    barmode='group'
+                )
+            else:
+                monthly_deals = area_data.groupby(['Area/City', 'Month']).size().reset_index(name='Deals')
+                fig6 = px.bar(
+                    monthly_deals,
+                    x='Month',
+                    y='Deals',
+                    color='Area/City',
+                    title=f"Monthly Deals by City in {', '.join(selected_cities)}",
+                    barmode='group'
+                )
+            st.plotly_chart(fig6)
+            st.write("**Analysis:** Add your analysis here.")
+
+        # Top 10 Neighbourhoods in Edmonton - Include DOM
+        st.subheader("Top 10 Neighbourhoods in Edmonton")
+        edmonton_neighbourhoods = monthly_data[(monthly_data['Area/City'] == 'Edmonton')]
+        top_neighbourhoods = edmonton_neighbourhoods.groupby('Community').agg(
+            Avg_Price=('Sold Price', 'mean'),
+            Demand=('Sold Date', 'count'),
+            Avg_DOM=('Days On Market', 'mean')
+        ).reset_index().sort_values(by='Demand', ascending=False).head(10)
+
+        fig7 = px.scatter(
+            top_neighbourhoods,
+            x='Avg_Price',
+            y='Demand',
+            size='Avg_DOM',
+            text='Community',
+            title="Top 10 Neighbourhoods by Average Price, Demand, and DOM (November vs December 2024)",
+            labels={'Avg_Price': 'Average Price', 'Demand': 'Number of Deals', 'Avg_DOM': 'Average DOM'}
+        )
+        st.plotly_chart(fig7)
+        st.write("**Analysis:** Add your analysis here.")
 
     # Content for the "2024 Market Performance" tab
     with tab2:
