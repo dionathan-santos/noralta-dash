@@ -219,6 +219,9 @@ st.plotly_chart(fig_gross_sales, use_container_width=True)
 # Group by community and calculate total deals
 community_deals = filtered_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
 
+# Group by community and calculate total deals
+community_deals = filtered_data.groupby(['Community', 'Area/City']).size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
+
 # Plot bar chart for top 10 communities
 fig_community_deals = px.bar(
     community_deals,
@@ -226,7 +229,7 @@ fig_community_deals = px.bar(
     y='Deals',
     title=f"Top 10 Communities for {selected_agent.title()}",
     labels={'Community': 'Community', 'Deals': 'Number of Deals'},
-    hover_data={'Deals': ':.0f'}
+    hover_data={'Deals': ':.0f', 'Area/City': True}  # Add 'Area/City' to hover data
 )
 fig_community_deals.update_layout(
     xaxis=dict(tickangle=-45),
