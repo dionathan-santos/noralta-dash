@@ -88,7 +88,7 @@ def main():
             barmode='group'
         )
         st.plotly_chart(fig2)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Volume of Transactions by Total Bedrooms (Single-Family Only) - Bar Chart
         st.subheader("Volume of Transactions by Total Bedrooms (Single-Family Only)")
@@ -115,7 +115,7 @@ def main():
             color_discrete_map={'Sold Price': 'red', 'List Price': 'blue'}
         )
         st.plotly_chart(fig4)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Days on Market (DOM) Analysis - Bar Chart
         st.subheader("Days on Market (DOM) Analysis")
@@ -130,7 +130,7 @@ def main():
             barmode='group'
         )
         st.plotly_chart(fig5)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         #### Geographical Insights
         st.header("Geographical Insights (November vs December 2024)")
@@ -174,7 +174,7 @@ def main():
                     barmode='group'
                 )
             st.plotly_chart(fig6)
-            st.write("**Analysis:** Add your analysis here.")
+            #st.write("**Analysis:** Add your analysis here.")
 
         # Top 10 Neighbourhoods in Edmonton - Include DOM
         st.subheader("Top 10 Neighbourhoods in Edmonton")
@@ -195,7 +195,7 @@ def main():
             labels={'Avg_Price': 'Average Price', 'Demand': 'Number of Deals', 'Avg_DOM': 'Average DOM'}
         )
         st.plotly_chart(fig7)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
     # Content for the "2024 Market Performance" tab
     with tab2:
@@ -240,7 +240,7 @@ def main():
             title="Volume of Transactions by Property Class (Last 3 Years)"
         )
         st.plotly_chart(fig1)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Volume of Transactions by Total Sqft (Single-Family Only) - Line Chart (Monthly)
         st.subheader("Volume of Transactions by Total Sqft (Single-Family Only)")
@@ -255,7 +255,7 @@ def main():
             title="Volume of Transactions by Total Sqft (Single-Family Only)"
         )
         st.plotly_chart(fig2)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Volume of Transactions by Total Bedrooms (Single-Family Only) - Line Chart (Monthly)
         st.subheader("Volume of Transactions by Total Bedrooms (Single-Family Only)")
@@ -268,7 +268,7 @@ def main():
             title="Volume of Transactions by Total Bedrooms (Single-Family Only)"
         )
         st.plotly_chart(fig3)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Average Sold Prices vs. List Prices (2024 Only) - Red and White Lines
         st.subheader("Average Sold Prices vs. List Prices (2024 Only)")
@@ -281,7 +281,7 @@ def main():
             color_discrete_map={'Sold Price': 'red', 'List Price': 'white'}
         )
         st.plotly_chart(fig4)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Days on Market (DOM) Analysis (Last 3 Years) - Line Chart with Tooltip (Monthly)
         st.subheader("Days on Market (DOM) Analysis (Last 3 Years)")
@@ -297,7 +297,7 @@ def main():
             hover_data={'Days On Market': ':.1f'}
         )
         st.plotly_chart(fig5)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         #### Geographical Insights
         st.header("Geographical Insights")
@@ -361,7 +361,7 @@ def main():
             labels={'Avg_Price': 'Average Price', 'Demand': 'Number of Deals', 'Avg_DOM': 'Average DOM'}
         )
         st.plotly_chart(fig7)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
 
 
@@ -427,7 +427,7 @@ def main():
             labels={'Area/City': 'Region', 'Deals': 'Number of Deals'}
         )
         st.plotly_chart(fig8)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # List of cities to analyze
         cities = ["Edmonton", "St. Albert", "Fort Saskatchewan", "Sherwood Park", "Spruce Grove"]
@@ -451,7 +451,7 @@ def main():
                 labels={'Community': 'Community', 'Deals': 'Number of Deals'}
             )
             st.plotly_chart(fig)
-            st.write(f"**Analysis for {city}:** Add your analysis here.")
+            #st.write(f"**Analysis for {city}:** Add your analysis here.")
 
         # New Graph 2: Top Property Types Where Agents Performed Better (First Appearance: Selected Years)
         st.subheader(f"Top Property Types Where Agents Performed Better (First Appearance: {', '.join(map(str, selected_years))})")
@@ -468,7 +468,7 @@ def main():
             labels={'Property Class': 'Property Type', 'Deals': 'Number of Deals'}
         )
         st.plotly_chart(fig9)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         with tab3:
             st.header("Forecasting")
