@@ -170,6 +170,22 @@ fig_gross_sales.update_layout(
 )
 st.plotly_chart(fig_gross_sales, use_container_width=True)
 
+# Extract firms where the agent worked (listing and buyer sides)
+listing_firms = filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent]['Listing Firm 1 - Office Name'].dropna().unique()
+buyer_firms = filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent]['Buyer Firm 1 - Office Name'].dropna().unique()
+
+# Combine and deduplicate firms
+all_firms = sorted(set(listing_firms) | set(buyer_firms))
+
+# Format the firm(s) information
+if len(all_firms) == 1:
+    firm_info = f"Firm: {all_firms[0]}"
+else:
+    firm_info = f"Firms: {', '.join(all_firms)}"
+
+# Display the firm(s) information below the KPIs
+st.write(firm_info)
+
 # Group by community and calculate total deals
 community_deals = filtered_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
 
