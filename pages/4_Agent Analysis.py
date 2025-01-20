@@ -60,11 +60,11 @@ all_agents_deals = (
     listings_data.groupby('Buyer Agent 1 - Agent Name').size()
 ).sort_values(ascending=False).reset_index(name='Total Deals')
 
+# Rename the 'index' column to 'Agent Name'
+all_agents_deals.rename(columns={'index': 'Agent Name'}, inplace=True)
+
 # Add ranking column
 all_agents_deals['Ranking'] = all_agents_deals.index + 1
-
-# Rename columns for clarity
-all_agents_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'}, inplace=True)
 
 # Sidebar filter for ranking-based search
 st.sidebar.header("Ranking-Based Search")
@@ -83,7 +83,6 @@ selected_agent = selected_agent_by_rank
 # Display the ranking of the selected agent
 selected_agent_rank = all_agents_deals[all_agents_deals['Agent Name'] == selected_agent]['Ranking'].values[0]
 st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank}")
-
 
 def filter_data(data, start_date, end_date, selected_agent, selected_cities=None, selected_communities=None, selected_building_types=None):
     # Filter by date range
@@ -217,8 +216,6 @@ fig_gross_sales.update_layout(
 )
 st.plotly_chart(fig_gross_sales, use_container_width=True)
 
-
-
 # Group by community and calculate total deals
 community_deals = filtered_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
 
@@ -237,7 +234,6 @@ fig_community_deals.update_layout(
 )
 st.plotly_chart(fig_community_deals, use_container_width=True)
 
-
 # Group by building type and calculate total deals
 building_type_deals = filtered_data.groupby('Building Type').size().reset_index(name='Deals')
 
@@ -255,7 +251,6 @@ fig_building_type.update_layout(
     margin=dict(b=120)
 )
 st.plotly_chart(fig_building_type, use_container_width=True)
-
 
 # Calculate deals for listing and buyer sides
 listing_deals = filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent].shape[0]
