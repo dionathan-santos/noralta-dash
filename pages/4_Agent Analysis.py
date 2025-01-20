@@ -145,7 +145,7 @@ else:
     firm_info = f"Firms: {', '.join(all_firms)}"
 
 # Display the firm(s) information below the KPIs
-st.write.metric(firm_info)
+st.markdown(:red[firm_info])
 
 # Group by month and calculate deals
 filtered_data['Month'] = filtered_data['Sold Date'].dt.to_period('M').dt.to_timestamp()
