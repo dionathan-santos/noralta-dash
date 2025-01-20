@@ -169,3 +169,61 @@ fig_gross_sales.update_layout(
     margin=dict(b=120)
 )
 st.plotly_chart(fig_gross_sales, use_container_width=True)
+
+# Group by community and calculate total deals
+community_deals = filtered_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
+
+# Plot bar chart for top 10 communities
+fig_community_deals = px.bar(
+    community_deals,
+    x='Community',
+    y='Deals',
+    title=f"Top 10 Communities for {selected_agent.title()}",
+    labels={'Community': 'Community', 'Deals': 'Number of Deals'},
+    hover_data={'Deals': ':.0f'}
+)
+fig_community_deals.update_layout(
+    xaxis=dict(tickangle=-45),
+    margin=dict(b=120)
+)
+st.plotly_chart(fig_community_deals, use_container_width=True)
+
+
+# Group by building type and calculate total deals
+building_type_deals = filtered_data.groupby('Building Type').size().reset_index(name='Deals')
+
+# Plot bar chart for building type
+fig_building_type = px.bar(
+    building_type_deals,
+    x='Building Type',
+    y='Deals',
+    title=f"Deals by Building Type for {selected_agent.title()}",
+    labels={'Building Type': 'Building Type', 'Deals': 'Number of Deals'},
+    hover_data={'Deals': ':.0f'}
+)
+fig_building_type.update_layout(
+    xaxis=dict(tickangle=-45),
+    margin=dict(b=120)
+)
+st.plotly_chart(fig_building_type, use_container_width=True)
+
+
+# Calculate deals for listing and buyer sides
+listing_deals = filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent].shape[0]
+buyer_deals = filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent].shape[0]
+
+# Create a DataFrame for the pie chart
+side_distribution = pd.DataFrame({
+    'Side': ['Listing', 'Buyer'],
+    'Deals': [listing_deals, buyer_deals]
+})
+
+# Plot pie chart
+fig_side_distribution = px.pie(
+    side_distribution,
+    names='Side',
+    values='Deals',
+    title=f"Listing vs Buyer Side Distribution for {selected_agent.title()}",
+    hover_data={'Deals': ':.0f'}
+)
+st.plotly_chart(fig_side_distribution, use_container_width=True)
