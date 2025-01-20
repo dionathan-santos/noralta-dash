@@ -83,24 +83,44 @@ if filtered_data.empty:
     st.warning("No data found for the selected filters!")
     st.stop()
 
+# Clean and convert 'Sold Price' to numeric
+filtered_data['Sold Price'] = pd.to_numeric(
+    filtered_data['Sold Price'].replace('[\$,]', '', regex=True),
+    errors='coerce'  # Convert invalid values to NaN
+)
+
+# Check if 'Sold Price' contains NaN values
+if filtered_data['Sold Price'].isna().all():
+    st.error("No valid 'Sold Price' data found for the selected filters!")
+    st.stop()
+
 # Calculate total deals (listing + buyer)
 total_deals = (
     filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent].shape[0] +
     filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent].shape[0]
 )
 
-# Calculate gross salesgross_sales = filtered_data['Sold Price'].sum()
+# Calculate gross sales
+gross_sales = filtered_data['Sold Price'].sum()
 
 # Calculate average price per deal
 average_price_per_deal = gross_sales / total_deals if total_deals > 0 else 0
 
-# Calculate market sharemarket_share = (total_deals / total_market_deals * 100) if total_market_deals > 0 else 0
+# Calculate market share
+total_market_deals = listings_data[
+    (listings_data['Sold Date'].notna()) &
+    (listings_data['Sold Date'] >= pd.Timestamp(start_date)) &
+    (listings_data['Sold Date'] <= pd.Timestamp(end_date))
+].shape[0]
+market_share = (total_deals / total_market_deals * 100) if total_market_deals > 0 else 0
 
 # Calculate ranking (compared to other agents)
 all_agents_deals = (
     listings_data.groupby('Listing Agent 1 - Agent Name').size() +
     listings_data.groupby('Buyer Agent 1 - Agent Name').size()
 ).sort_values(ascending=False)
+agent_ranking = all_agents_deals.index.get_loc(selected_agent) + 1 if selected_agent in all_agents_deals.index else "N/A"
+
 # Display KPIs
 st.subheader(f"Performance Overview for {selected_agent.title()}")
 
