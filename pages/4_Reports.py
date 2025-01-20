@@ -72,7 +72,7 @@ def main():
             barmode='group'
         )
         st.plotly_chart(fig1)
-        st.write("**Analysis:** Add your analysis here.")
+        #st.write("**Analysis:** Add your analysis here.")
 
         # Volume of Transactions by Total Sqft (Single-Family Only) - Bar Chart
         st.subheader("Volume of Transactions by Total Sqft (Single-Family Only)")
