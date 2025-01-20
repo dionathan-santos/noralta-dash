@@ -54,6 +54,37 @@ selected_communities = st.sidebar.multiselect("Select Community", sorted(listing
 # Building type filter
 selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['Building Type'].dropna().unique()))
 
+# Calculate rankings for all agents (based on total deals)
+all_agents_deals = (
+    listings_data.groupby('Listing Agent 1 - Agent Name').size() +
+    listings_data.groupby('Buyer Agent 1 - Agent Name').size()
+).sort_values(ascending=False).reset_index(name='Total Deals')
+
+# Add ranking column
+all_agents_deals['Ranking'] = all_agents_deals.index + 1
+
+# Rename columns for clarity
+all_agents_deals.rename(columns={'Listing Agent 1 - Agent Name': 'Agent Name'}, inplace=True)
+
+# Sidebar filter for ranking-based search
+st.sidebar.header("Ranking-Based Search")
+
+# Add a searchable dropdown for agents by ranking
+ranked_agents = all_agents_deals['Agent Name'].tolist()
+selected_agent_by_rank = st.sidebar.selectbox(
+    "Search Agent by Ranking",
+    ranked_agents,
+    index=ranked_agents.index(selected_agent) if selected_agent in ranked_agents else 0
+)
+
+# Update the selected agent if the user chooses from the ranking-based dropdown
+selected_agent = selected_agent_by_rank
+
+# Display the ranking of the selected agent
+selected_agent_rank = all_agents_deals[all_agents_deals['Agent Name'] == selected_agent]['Ranking'].values[0]
+st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank}")
+
+
 def filter_data(data, start_date, end_date, selected_agent, selected_cities=None, selected_communities=None, selected_building_types=None):
     # Filter by date range
     filtered_data = data[(data['Sold Date'] >= pd.Timestamp(start_date)) &
