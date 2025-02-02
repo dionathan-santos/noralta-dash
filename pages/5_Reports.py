@@ -134,10 +134,13 @@ def main():
         color='Year',
         barmode='group',
         title="Distribution of Total Bedrooms in January (by Year)",
-        text_auto=True
+        text_auto=True,
+        height=600  # Increased plot height to give more room for data labels
     )
     fig_bedrooms.update_traces(textposition='outside')
-    st.plotly_chart(fig_bedrooms)
+    # Increase bottom margin in case labels extend below the plot area
+    fig_bedrooms.update_layout(margin=dict(b=150))
+    st.plotly_chart(fig_bedrooms, use_container_width=True)
 
     # Distribution of Total Floor Area (SF) with more contrast colours
     contrast_colors = ['#636EFA', '#EF553B', '#00CC96']  # Example contrast colours
