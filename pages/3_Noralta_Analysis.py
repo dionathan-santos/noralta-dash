@@ -442,15 +442,23 @@ def main():
     # Section 3: Bottom-Performing Agents
     st.subheader("Bottom-Performing Agents")
 
+    # Filter for Noralta agents only
+    noralta_listing_agents_data = noralta_agents_data[
+        noralta_agents_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+    ]
+    noralta_buyer_agents_data = noralta_agents_data[
+        noralta_agents_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+    ]
+
     # Bottom 10 Performing Agents (Listings)
-    bottom_listing_agents = noralta_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
+    bottom_listing_agents = noralta_listing_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
     }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
     bottom_listing_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
     # Bottom 10 Performing Agents (Buyers)
-    bottom_buyer_agents = noralta_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
+    bottom_buyer_agents = noralta_buyer_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
         'Listing ID #': 'count',  # Total deals
         'Sold Price': 'sum'       # Revenue contribution
     }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
