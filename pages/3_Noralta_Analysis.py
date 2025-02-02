@@ -442,12 +442,14 @@ def main():
     # Section 3: Bottom-Performing Agents
     st.subheader("Bottom-Performing Agents")
 
-    # Filter for Noralta agents only
-    noralta_listing_agents_data = noralta_agents_data[
-        noralta_agents_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+    # Filter for Noralta listing agents only
+    noralta_listing_agents_data = noralta_data[
+        noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
     ]
-    noralta_buyer_agents_data = noralta_agents_data[
-        noralta_agents_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+
+    # Filter for Noralta buyer agents only
+    noralta_buyer_agents_data = noralta_data[
+        noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
     ]
 
     # Bottom 10 Performing Agents (Listings)
