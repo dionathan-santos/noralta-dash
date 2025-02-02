@@ -328,11 +328,11 @@ def main():
     # Add transaction table at the end of the page before main() closure
     # Section 6: Transaction Details
     st.subheader("Transaction Details")
-    st.write(f"Showing all {len(noralta_data)} transactions closed by Noralta")
+    st.write(f"Showing all {len(filtered_data)} transactions closed by Noralta")
     
     # Display dataframe with all relevant transactions
     st.dataframe(
-        noralta_data[[
+        filtered_data[[
             'Sold Date', 
             'Listing Agent 1 - Agent Name',
             'Buyer Agent 1 - Agent Name',
@@ -347,7 +347,7 @@ def main():
     # Add raw data expander
     with st.expander("View Raw Transaction Data"):
         st.write("Full transaction data including all fields:")
-        st.dataframe(noralta_data)
+        st.dataframe(filtered_data)
 
 
 
