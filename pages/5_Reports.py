@@ -62,9 +62,9 @@ def main():
     # I. Global Filters
     # ---------------------------
     st.sidebar.header("Global Filters")
-
+    
     # MongoDB connection settings (adjust credentials as necessary)
-    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+    mongodb_uri = "mongodb+srv://your_username:your_password@cluster0.example.mongodb.net/?retryWrites=true&w=majority"
     database_name = "real_estate"
     collection_name = "listings"
     
@@ -75,23 +75,22 @@ def main():
         return
     data = preprocess_data(data)
     
-    # Build City/Area filter using the data
-    cities = sorted(data['Area/City'].dropna().unique())
-    selected_cities = st.sidebar.multiselect("Select City/Area", options=cities, default=cities)
-    
-    # Community filter: communities available in the selected cities
-    communities_all = data[data['Area/City'].isin(selected_cities)]['Community'].dropna().unique()
-    selected_communities = st.sidebar.multiselect("Select Community", options=sorted(communities_all), default=sorted(communities_all))
-    
-    # Date filter: fixed to January for specific years for the main analysis
-    # We use three subsets: January 2023, January 2024, January 2025
-    jan_data = data[data['Month'] == 1]
-    jan_data = jan_data[jan_data['Year'].isin([2023, 2024, 2025])]
-    
-    # Apply City and Community filters
+    # City/Area Filter: Start with an empty selection; if nothing selected, use all
+    all_cities = sorted(data['Area/City'].dropna().unique())
+    selected_cities = st.sidebar.multiselect("Select City/Area", options=all_cities, default=[])
+    if not selected_cities:
+        selected_cities = all_cities
+
+    # Community Filter: Dynamically filtered based on selected cities; start with empty selection (i.e., all)
+    all_communities = sorted(data[data['Area/City'].isin(selected_cities)]['Community'].dropna().unique())
+    selected_communities = st.sidebar.multiselect("Select Community", options=all_communities, default=[])
+    if not selected_communities:
+        selected_communities = all_communities
+
+    # Date filter: Fixed to January for the years 2023, 2024, and 2025.
+    jan_data = data[(data['Month'] == 1) & (data['Year'].isin([2023, 2024, 2025]))]
     jan_data = jan_data[jan_data['Area/City'].isin(selected_cities)]
-    if selected_communities:
-        jan_data = jan_data[jan_data['Community'].isin(selected_communities)]
+    jan_data = jan_data[jan_data['Community'].isin(selected_communities)]
     
     # ---------------------------
     # II. Sales Trends Comparison
@@ -105,7 +104,7 @@ def main():
         x='Year',
         y='Properties Sold',
         title="Number of Properties Sold in January (2023 vs 2024 vs 2025)",
-        text='Properties Sold'
+        text_auto=True
     )
     st.plotly_chart(fig_sales_volume)
 
@@ -117,7 +116,8 @@ def main():
         y=['Sold Price', 'List Price'],
         barmode='group',
         title="Average Sold Price vs List Price in January (2023 vs 2024 vs 2025)",
-        labels={"value": "Price", "variable": "Price Type"}
+        labels={"value": "Price", "variable": "Price Type"},
+        text_auto=True
     )
     st.plotly_chart(fig_price_trends)
 
@@ -126,34 +126,41 @@ def main():
     # ---------------------------
     st.header("Property Preferences Trends")
 
-    # A. Feature Distribution: Distribution of key property features for January
-    # Example: Distribution of Total Bedrooms
+    # A. Feature Distribution
+    # Distribution of Total Bedrooms
     fig_bedrooms = px.histogram(
         jan_data,
         x='Total Bedrooms',
         color='Year',
         barmode='group',
-        title="Distribution of Total Bedrooms in January (by Year)"
+        title="Distribution of Total Bedrooms in January (by Year)",
+        text_auto=True
     )
+    fig_bedrooms.update_traces(textposition='outside')
     st.plotly_chart(fig_bedrooms)
 
-    # Example: Distribution of Total Floor Area (SF)
+    # Distribution of Total Floor Area (SF) with more contrast colours
+    contrast_colors = ['#636EFA', '#EF553B', '#00CC96']  # Example contrast colours
     fig_area = px.histogram(
         jan_data,
         x='Total Flr Area (SF)',
         nbins=20,
         color='Year',
         barmode='overlay',
-        title="Distribution of Total Floor Area (SF) in January (by Year)"
+        title="Distribution of Total Floor Area (SF) in January (by Year)",
+        color_discrete_sequence=contrast_colors,
+        text_auto=True
     )
+    fig_area.update_traces(textposition='inside')
     st.plotly_chart(fig_area)
 
-    # Example: Property Class distribution
+    # Property Class distribution (pie chart – labels shown)
     fig_prop_class = px.pie(
         jan_data,
         names='Property Class',
-        title="Property Class Distribution in January (Overall)"
+        title="Property Class Distribution in January (Overall)",
     )
+    fig_prop_class.update_traces(textinfo='percent+label')
     st.plotly_chart(fig_prop_class)
 
     # B. Buyer Preference Dynamics: Trends in property types and styles
@@ -162,8 +169,10 @@ def main():
         x='Property Class',
         color='Year',
         barmode='group',
-        title="Property Class Trends in January (by Year)"
+        title="Property Class Trends in January (by Year)",
+        text_auto=True
     )
+    fig_prop_type.update_traces(textposition='outside')
     st.plotly_chart(fig_prop_type)
 
     fig_style = px.histogram(
@@ -171,15 +180,17 @@ def main():
         x='Style',
         color='Year',
         barmode='group',
-        title="Property Style Trends in January (by Year)"
+        title="Property Style Trends in January (by Year)",
+        text_auto=True
     )
+    fig_style.update_traces(textposition='outside')
     st.plotly_chart(fig_style)
 
     # ---------------------------
     # IV. Property Age Segmentation (YoY Analysis)
     # ---------------------------
     st.header("Property Age Segmentation (YoY Analysis)")
-
+    
     # Create property age category using Year Built and Sold Date
     jan_data['Age Category'] = jan_data.apply(assign_age_category, axis=1)
     
@@ -191,7 +202,8 @@ def main():
         y='Count',
         color='Age Category',
         barmode='group',
-        title="Sales by Property Age Category in January (2023 vs 2024 vs 2025)"
+        title="Sales by Property Age Category in January (2023 vs 2024 vs 2025)",
+        text_auto=True
     )
     st.plotly_chart(fig_age_seg)
 
@@ -208,11 +220,9 @@ def main():
     # Prepare Q1 data for 2022 and 2023
     q1_data = data[(data['Year'].isin([2022, 2023])) & (data['Month'].isin([1, 2, 3]))]
     q1_data = q1_data[q1_data['Area/City'].isin(selected_cities)]
-    if selected_communities:
-        q1_data = q1_data[q1_data['Community'].isin(selected_communities)]
+    q1_data = q1_data[q1_data['Community'].isin(selected_communities)]
     
     # For January 2025, we already have jan_data (filtered above)
-    # Compute metrics for communities: count of deals, average Days On Market, average Sold Price
     def compute_metrics(df, period_label):
         metrics = df.groupby('Community').agg(
             Deals=('Sold Date', 'count'),
@@ -222,45 +232,73 @@ def main():
         metrics['Period'] = period_label
         return metrics
 
-    metrics_q1 = pd.concat([
-        compute_metrics(q1_data[q1_data['Year'] == 2022], "Q1 2022"),
-        compute_metrics(q1_data[q1_data['Year'] == 2023], "Q1 2023")
-    ])
+    metrics_q1_2022 = compute_metrics(q1_data[q1_data['Year'] == 2022], "Q1 2022")
+    metrics_q1_2023 = compute_metrics(q1_data[q1_data['Year'] == 2023], "Q1 2023")
     metrics_jan25 = compute_metrics(jan_data[jan_data['Year'] == 2025], "January 2025")
     
-    community_metrics = pd.concat([metrics_q1, metrics_jan25])
+    # Combine metrics for community performance comparison
+    community_metrics = pd.concat([metrics_q1_2022, metrics_q1_2023, metrics_jan25])
     
-    # Display a grouped bar chart for number of deals by community and period
-    fig_community_deals = px.bar(
-        community_metrics,
+    # --- Deals: Top 10 Communities by Total Deals ---
+    # First, aggregate deals by community across periods.
+    deals_agg = community_metrics.groupby("Community")["Deals"].sum().reset_index()
+    top10_deals = deals_agg.sort_values("Deals", ascending=False).head(10)["Community"].tolist()
+    deals_chart_data = community_metrics[community_metrics["Community"].isin(top10_deals)]
+    fig_deals = px.bar(
+        deals_chart_data,
         x='Community',
         y='Deals',
         color='Period',
         barmode='group',
-        title="Community Performance: Number of Deals by Period"
+        title="Top 10 Communities (by Deals)",
+        text_auto=True
     )
-    st.plotly_chart(fig_community_deals)
+    st.plotly_chart(fig_deals)
     
-    # Optionally, display additional charts for Avg_DOM and Avg_Sold_Price
-    fig_community_dom = px.bar(
-        community_metrics,
+    # --- Average DOM: Top 10 Communities with Lowest Average DOM ---
+    # We take the overall average DOM per community (across periods)
+    dom_agg = community_metrics.groupby("Community")["Avg_DOM"].mean().reset_index()
+    top10_low_dom = dom_agg.sort_values("Avg_DOM", ascending=True).head(10)["Community"].tolist()
+    dom_chart_data = community_metrics[community_metrics["Community"].isin(top10_low_dom)]
+    fig_dom = px.bar(
+        dom_chart_data,
         x='Community',
         y='Avg_DOM',
         color='Period',
         barmode='group',
-        title="Community Performance: Average Days on Market by Period"
+        title="Top 10 Communities (Lowest Avg DOM)",
+        text_auto=True
     )
-    st.plotly_chart(fig_community_dom)
+    st.plotly_chart(fig_dom)
     
-    fig_community_price = px.bar(
-        community_metrics,
+    # --- Average Sold Price: Top 10 Communities with Highest Avg Sold Price ---
+    price_agg = community_metrics.groupby("Community")["Avg_Sold_Price"].mean().reset_index()
+    top10_high_price = price_agg.sort_values("Avg_Sold_Price", ascending=False).head(10)["Community"].tolist()
+    price_chart_data_high = community_metrics[community_metrics["Community"].isin(top10_high_price)]
+    fig_price_high = px.bar(
+        price_chart_data_high,
         x='Community',
         y='Avg_Sold_Price',
         color='Period',
         barmode='group',
-        title="Community Performance: Average Sold Price by Period"
+        title="Top 10 Communities (Highest Avg Sold Price)",
+        text_auto=True
     )
-    st.plotly_chart(fig_community_price)
+    st.plotly_chart(fig_price_high)
+    
+    # --- Average Sold Price: Top 10 Communities with Lowest Avg Sold Price ---
+    top10_low_price = price_agg.sort_values("Avg_Sold_Price", ascending=True).head(10)["Community"].tolist()
+    price_chart_data_low = community_metrics[community_metrics["Community"].isin(top10_low_price)]
+    fig_price_low = px.bar(
+        price_chart_data_low,
+        x='Community',
+        y='Avg_Sold_Price',
+        color='Period',
+        barmode='group',
+        title="Top 10 Communities (Lowest Avg Sold Price)",
+        text_auto=True
+    )
+    st.plotly_chart(fig_price_low)
     
     # ---------------------------
     # VI. Summary & Insights
