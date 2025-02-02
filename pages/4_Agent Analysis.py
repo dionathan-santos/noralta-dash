@@ -22,7 +22,7 @@ def load_and_normalize_data(mongodb_uri, database_name):
     return listings_data
 
 # MongoDB connection details
-mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
 database_name = "real_estate"
 
 # Load data

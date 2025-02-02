@@ -4,6 +4,9 @@ import pandas as pd
 from utils.data_utils import get_mongodb_data
 import locale
 
+
+#### git add . ; git commit -m "test 6" ; git push origin main  
+
 # Normalize office names
 def normalize_office_names(data, column_name):
     if column_name in data.columns:

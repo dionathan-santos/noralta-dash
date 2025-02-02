@@ -18,7 +18,7 @@ def upload_data_to_mongodb(data, mongodb_uri, database_name, collection_name):
 
 def main():
     # MongoDB connection details
-    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
+    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
     database_name = "real_estate"
     collection_name = "brokerage"
 
