@@ -56,7 +56,7 @@ def main():
     listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
 
     # Data preprocessing
-    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'])
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y')
     listings_data['Sold Price'] = listings_data['Sold Price'].str.replace('$', '').str.replace(',', '').astype(float)
     listings_data['List Price'] = listings_data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
     listings_data['Total Flr Area (SF)'] = listings_data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
@@ -126,12 +126,12 @@ def main():
 
     # Apply filters
     mask = (
-        (listings_data['Sold Date'].dt.date >= start_date) &
-        (listings_data['Sold Date'].dt.date <= end_date) &
+        (listings_data['Sold Date'].dt.normalize() >= pd.to_datetime(start_date)) &
+        (listings_data['Sold Date'].dt.normalize() <= pd.to_datetime(end_date)) &
         (listings_data['Total Baths'].between(bath_range[0], bath_range[1])) &
         (listings_data['Total Bedrooms'].between(bed_range[0], bed_range[1])) &
         (listings_data['Sold Price'].between(min_price, max_price)) &
-        (listings_data['Days On Market'].between(dom_range[0], dom_range[1] if dom_range[1] < 200 else 200))
+        (listings_data['Days On Market'].between(dom_range[0], dom_range[1]))
 )
 
     if selected_firms:
