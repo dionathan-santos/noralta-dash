@@ -64,7 +64,7 @@ def main():
     st.sidebar.header("Global Filters")
     
     # MongoDB connection settings (adjust credentials as necessary)
-    mongodb_uri = "mongodb+srv://your_username:your_password@cluster0.example.mongodb.net/?retryWrites=true&w=majority"
+    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
     database_name = "real_estate"
     collection_name = "listings"
     
