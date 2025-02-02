@@ -210,95 +210,101 @@ def main():
     # ---------------------------
     # V. Community Performance Comparison
     # ---------------------------
-    st.header("Community Performance Comparison")
+    st.header("Community Performance Comparison (By Community Metrics)")
     st.markdown("""
-    Compare key performance metrics for communities:
-    - **Q1 2022 & Q1 2023:** Aggregated performance in the first quarter.
-    - **January 2025:** Performance in January 2025.
+    This section shows breakdowns for the top communities (by total deals in January) by various metrics:
+    - Sales by property age category
+    - Sales by total bedrooms
+    - Sales by total baths
+    - Sales by total floor area (SF) ranges
+    - Sales by Days On Market (DOM) ranges
     """)
     
-    # Prepare Q1 data for 2022 and 2023
-    q1_data = data[(data['Year'].isin([2022, 2023])) & (data['Month'].isin([1, 2, 3]))]
-    q1_data = q1_data[q1_data['Area/City'].isin(selected_cities)]
-    q1_data = q1_data[q1_data['Community'].isin(selected_communities)]
+    # Determine the top communities by total deals in January
+    community_deals = jan_data.groupby("Community").size().reset_index(name="Deals")
+    top_communities = community_deals.sort_values("Deals", ascending=False).head(10)["Community"].tolist()
+    top_comm_data = jan_data[jan_data["Community"].isin(top_communities)]
     
-    # For January 2025, we already have jan_data (filtered above)
-    def compute_metrics(df, period_label):
-        metrics = df.groupby('Community').agg(
-            Deals=('Sold Date', 'count'),
-            Avg_DOM=('Days On Market', 'mean'),
-            Avg_Sold_Price=('Sold Price', 'mean')
-        ).reset_index()
-        metrics['Period'] = period_label
-        return metrics
-
-    metrics_q1_2022 = compute_metrics(q1_data[q1_data['Year'] == 2022], "Q1 2022")
-    metrics_q1_2023 = compute_metrics(q1_data[q1_data['Year'] == 2023], "Q1 2023")
-    metrics_jan25 = compute_metrics(jan_data[jan_data['Year'] == 2025], "January 2025")
-    
-    # Combine metrics for community performance comparison
-    community_metrics = pd.concat([metrics_q1_2022, metrics_q1_2023, metrics_jan25])
-    
-    # --- Deals: Top 10 Communities by Total Deals ---
-    # First, aggregate deals by community across periods.
-    deals_agg = community_metrics.groupby("Community")["Deals"].sum().reset_index()
-    top10_deals = deals_agg.sort_values("Deals", ascending=False).head(10)["Community"].tolist()
-    deals_chart_data = community_metrics[community_metrics["Community"].isin(top10_deals)]
-    fig_deals = px.bar(
-        deals_chart_data,
-        x='Community',
-        y='Deals',
-        color='Period',
-        barmode='group',
-        title="Top 10 Communities (by Deals)",
+    # A. Sales by Property Age Category (by Community)
+    st.subheader("Sales by Property Age Category (by Community)")
+    age_by_community = top_comm_data.groupby(["Community", "Age Category"]).size().reset_index(name="Count")
+    fig_age_comm = px.bar(
+        age_by_community,
+        x="Community",
+        y="Count",
+        color="Age Category",
+        barmode="group",
+        title="Sales by Property Age Category for Top Communities",
         text_auto=True
     )
-    st.plotly_chart(fig_deals)
+    fig_age_comm.update_traces(textposition='outside')
+    st.plotly_chart(fig_age_comm)
     
-    # --- Average DOM: Top 10 Communities with Lowest Average DOM ---
-    # We take the overall average DOM per community (across periods)
-    dom_agg = community_metrics.groupby("Community")["Avg_DOM"].mean().reset_index()
-    top10_low_dom = dom_agg.sort_values("Avg_DOM", ascending=True).head(10)["Community"].tolist()
-    dom_chart_data = community_metrics[community_metrics["Community"].isin(top10_low_dom)]
-    fig_dom = px.bar(
-        dom_chart_data,
-        x='Community',
-        y='Avg_DOM',
-        color='Period',
-        barmode='group',
-        title="Top 10 Communities (Lowest Avg DOM)",
+    # B. Sales by Total Bedrooms (by Community)
+    st.subheader("Sales by Total Bedrooms (by Community)")
+    bedrooms_by_community = top_comm_data.groupby(["Community", "Total Bedrooms"]).size().reset_index(name="Count")
+    fig_bedrooms_comm = px.bar(
+        bedrooms_by_community,
+        x="Community",
+        y="Count",
+        color="Total Bedrooms",
+        barmode="group",
+        title="Sales by Total Bedrooms for Top Communities",
         text_auto=True
     )
-    st.plotly_chart(fig_dom)
+    fig_bedrooms_comm.update_traces(textposition='outside')
+    st.plotly_chart(fig_bedrooms_comm)
     
-    # --- Average Sold Price: Top 10 Communities with Highest Avg Sold Price ---
-    price_agg = community_metrics.groupby("Community")["Avg_Sold_Price"].mean().reset_index()
-    top10_high_price = price_agg.sort_values("Avg_Sold_Price", ascending=False).head(10)["Community"].tolist()
-    price_chart_data_high = community_metrics[community_metrics["Community"].isin(top10_high_price)]
-    fig_price_high = px.bar(
-        price_chart_data_high,
-        x='Community',
-        y='Avg_Sold_Price',
-        color='Period',
-        barmode='group',
-        title="Top 10 Communities (Highest Avg Sold Price)",
+    # C. Sales by Total Baths (by Community)
+    st.subheader("Sales by Total Baths (by Community)")
+    baths_by_community = top_comm_data.groupby(["Community", "Total Baths"]).size().reset_index(name="Count")
+    fig_baths_comm = px.bar(
+        baths_by_community,
+        x="Community",
+        y="Count",
+        color="Total Baths",
+        barmode="group",
+        title="Sales by Total Baths for Top Communities",
         text_auto=True
     )
-    st.plotly_chart(fig_price_high)
+    fig_baths_comm.update_traces(textposition='outside')
+    st.plotly_chart(fig_baths_comm)
     
-    # --- Average Sold Price: Top 10 Communities with Lowest Avg Sold Price ---
-    top10_low_price = price_agg.sort_values("Avg_Sold_Price", ascending=True).head(10)["Community"].tolist()
-    price_chart_data_low = community_metrics[community_metrics["Community"].isin(top10_low_price)]
-    fig_price_low = px.bar(
-        price_chart_data_low,
-        x='Community',
-        y='Avg_Sold_Price',
-        color='Period',
-        barmode='group',
-        title="Top 10 Communities (Lowest Avg Sold Price)",
+    # D. Sales by Total Floor Area (SF) Ranges (by Community)
+    st.subheader("Sales by Total Floor Area (SF) Ranges (by Community)")
+    size_bins = list(range(0, 5001, 500))
+    size_labels = [f"{size_bins[i]}-{size_bins[i+1]-1}" for i in range(len(size_bins)-1)]
+    top_comm_data["Size Range"] = pd.cut(top_comm_data["Total Flr Area (SF)"], bins=size_bins, labels=size_labels, right=False)
+    size_by_community = top_comm_data.groupby(["Community", "Size Range"]).size().reset_index(name="Count")
+    fig_size_comm = px.bar(
+        size_by_community,
+        x="Community",
+        y="Count",
+        color="Size Range",
+        barmode="group",
+        title="Sales by Total Floor Area (SF) Ranges for Top Communities",
         text_auto=True
     )
-    st.plotly_chart(fig_price_low)
+    fig_size_comm.update_traces(textposition='inside')
+    st.plotly_chart(fig_size_comm)
+    
+    # E. Sales by Days On Market (DOM) Ranges (by Community)
+    st.subheader("Sales by Days On Market (DOM) Ranges (by Community)")
+    dom_bins = [0, 10, 20, 30, 40, 1000]
+    dom_labels = ["0-10", "10-20", "20-30", "30-40", "40+"]
+    top_comm_data["DOM Range"] = pd.cut(top_comm_data["Days On Market"], bins=dom_bins, labels=dom_labels, right=False)
+    dom_by_community = top_comm_data.groupby(["Community", "DOM Range"]).size().reset_index(name="Count")
+    fig_dom_comm = px.bar(
+        dom_by_community,
+        x="Community",
+        y="Count",
+        color="DOM Range",
+        barmode="group",
+        title="Sales by Days On Market (DOM) Ranges for Top Communities",
+        text_auto=True
+    )
+    fig_dom_comm.update_traces(textposition='inside')
+    st.plotly_chart(fig_dom_comm)
     
     # ---------------------------
     # VI. Summary & Insights
@@ -308,7 +314,7 @@ def main():
     - **Sales Trends:** Compare overall sales volume and pricing trends for January across 2023, 2024, and 2025.
     - **Property Preferences:** Understand shifts in features and property types that appeal to buyers.
     - **Age Segmentation:** Identify which property age groups are most in demand.
-    - **Community Performance:** Evaluate if communities that performed well in Q1 2022/2023 are maintaining their pace in January 2025.
+    - **Community Performance:** Review detailed community breakdowns by age, bedrooms, baths, size ranges, and DOM ranges.
     
     Use these insights to tailor marketing and sales strategies for the coming quarter.
     """)
