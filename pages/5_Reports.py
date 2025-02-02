@@ -173,10 +173,12 @@ def main():
         color='Year',
         barmode='group',
         title="Property Class Trends in January (by Year)",
-        text_auto=True
+        text_auto=True,
+        height=600
     )
     fig_prop_type.update_traces(textposition='outside')
-    st.plotly_chart(fig_prop_type)
+    fig_prop_type.update_layout(margin=dict(b=150))
+    st.plotly_chart(fig_prop_type, use_container_width=True)
 
     fig_style = px.histogram(
         jan_data,
@@ -184,10 +186,12 @@ def main():
         color='Year',
         barmode='group',
         title="Property Style Trends in January (by Year)",
-        text_auto=True
+        text_auto=True,
+        height=600
     )
     fig_style.update_traces(textposition='outside')
-    st.plotly_chart(fig_style)
+    fig_style.update_layout(margin=dict(b=150))
+    st.plotly_chart(fig_style, use_container_width=True)
 
     # ---------------------------
     # IV. Property Age Segmentation (YoY Analysis)
@@ -236,12 +240,14 @@ def main():
         x="Community",
         y="Count",
         color="Age Category",
-        barmode="group",
+        barmode='group',
         title="Sales by Property Age Category for Top Communities",
-        text_auto=True
+        text_auto=True,
+        height=600
     )
     fig_age_comm.update_traces(textposition='outside')
-    st.plotly_chart(fig_age_comm)
+    fig_age_comm.update_layout(margin=dict(b=150))
+    st.plotly_chart(fig_age_comm, use_container_width=True)
     
     # B. Sales by Total Bedrooms (by Community)
     st.subheader("Sales by Total Bedrooms (by Community)")
