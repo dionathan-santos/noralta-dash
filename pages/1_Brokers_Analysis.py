@@ -15,10 +15,19 @@ def normalize_office_names(data, column_name):
 
 # Filter data function
 def filter_data(data, start_date, end_date, selected_cities=None, selected_communities=None, selected_building_types=None, selected_firms=None):
-    data['Sold Date'] = pd.to_datetime(data['Sold Date'], errors='coerce')
+    # Add explicit date format and normalize dates
+    data['Sold Date'] = pd.to_datetime(data['Sold Date'], format='%m/%d/%Y', errors='coerce')
     data = data[data['Sold Date'].notna()]
 
-    filtered_data = data[(data['Sold Date'] >= pd.Timestamp(start_date)) & (data['Sold Date'] <= pd.Timestamp(end_date))]
+    # Convert input dates to pandas timestamps and normalize
+    start_dt = pd.to_datetime(start_date).normalize()
+    end_dt = pd.to_datetime(end_date).normalize()
+
+    # Filter with normalized dates
+    filtered_data = data[
+        (data['Sold Date'].dt.normalize() >= start_dt) & 
+        (data['Sold Date'].dt.normalize() <= end_dt)
+    ]
 
     if selected_cities:
         filtered_data = filtered_data[filtered_data['Area/City'].isin(selected_cities)]
@@ -70,8 +79,9 @@ def load_and_normalize_data(mongodb_uri, database_name):
         listings_data = normalize_office_names(listings_data, col)
     brokerage_data = normalize_office_names(brokerage_data, 'Broker')
 
-    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
-    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], errors='coerce')
+    # Add format to both date columns
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
+    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
 
     return listings_data, brokerage_data
 
