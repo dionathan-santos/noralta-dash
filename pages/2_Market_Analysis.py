@@ -165,6 +165,7 @@ def main():
         st.metric("Total Listings Sold", len(filtered_data))
 
     with col2:
+        st.metric("Total Sales Volume", f"${filtered_data['Sold Price'].sum():,.2f}")
         avg_dom = filtered_data['Days On Market'].mean()
         st.metric("Average DOM", f"{avg_dom:.1f} days")
 
@@ -323,6 +324,30 @@ def main():
     )
 
 
+
+    # Add transaction table at the end of the page before main() closure
+    # Section 6: Transaction Details
+    st.subheader("Transaction Details")
+    st.write(f"Showing all {len(noralta_data)} transactions closed by Noralta")
+    
+    # Display dataframe with all relevant transactions
+    st.dataframe(
+        noralta_data[[
+            'Sold Date', 
+            'Listing Agent 1 - Agent Name',
+            'Buyer Agent 1 - Agent Name',
+            'Sold Price',
+            'Community',
+            'Days On Market',
+            'Property Class'
+        ]].sort_values('Sold Date', ascending=False),
+        height=600
+    )
+    
+    # Add raw data expander
+    with st.expander("View Raw Transaction Data"):
+        st.write("Full transaction data including all fields:")
+        st.dataframe(noralta_data)
 
 
 
