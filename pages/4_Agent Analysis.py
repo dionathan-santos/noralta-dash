@@ -8,16 +8,14 @@ st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
 def load_and_normalize_data(mongodb_uri, database_name):
-    # Fetch listings data from MongoDB
     listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
 
-    # Normalize agent and firm names
-    for col in ['Listing Agent 1 - Agent Name', 'Buyer Agent 1 - Agent Name',
-                'Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
-        listings_data[col] = listings_data[col].str.lower().str.strip()
-
-    # Convert 'Sold Date' to datetime
-    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
+    # Update date parsing with explicit format
+    listings_data['Sold Date'] = pd.to_datetime(
+        listings_data['Sold Date'],
+        format='%m/%d/%Y',
+        errors='coerce'
+    ).dt.normalize()
 
     return listings_data
 
@@ -85,9 +83,15 @@ selected_agent_rank = all_agents_deals[all_agents_deals['Agent Name'] == selecte
 st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank}")
 
 def filter_data(data, start_date, end_date, selected_agent, selected_cities=None, selected_communities=None, selected_building_types=None):
-    # Filter by date range
-    filtered_data = data[(data['Sold Date'] >= pd.Timestamp(start_date)) &
-                         (data['Sold Date'] <= pd.Timestamp(end_date))]
+    # Convert input dates to pandas timestamps and normalize
+    start_dt = pd.to_datetime(start_date).normalize()
+    end_dt = pd.to_datetime(end_date).normalize()
+
+    # Update date comparison
+    filtered_data = data[
+        (data['Sold Date'].dt.normalize() >= start_dt) &
+        (data['Sold Date'].dt.normalize() <= end_dt)
+    ]
 
     # Filter by agent (both listing and buyer sides)
     filtered_data = filtered_data[

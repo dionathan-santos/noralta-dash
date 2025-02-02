@@ -37,7 +37,7 @@ def main():
         return
 
     # Data preprocessing
-    data['Sold Date'] = pd.to_datetime(data['Sold Date'])
+    data['Sold Date'] = pd.to_datetime(data['Sold Date'], format='%m/%d/%Y')  # Add explicit format
     data['Sold Price'] = data['Sold Price'].str.replace('$', '').str.replace(',', '').astype(float)
     data['List Price'] = data['List Price'].str.replace('$', '').str.replace(',', '').astype(float)
     data['Total Flr Area (SF)'] = data['Total Flr Area (SF)'].str.replace(',', '').astype(float)
@@ -94,9 +94,12 @@ def main():
     dom_range = st.sidebar.slider("Days on Market", 0, max_dom, (0, max_dom))
 
     # Apply filters
+    start_dt = pd.to_datetime(start_date).normalize()
+    end_dt = pd.to_datetime(end_date).normalize()
+
     mask = (
-        (data['Sold Date'].dt.date >= start_date) &
-        (data['Sold Date'].dt.date <= end_date) &
+        (data['Sold Date'].dt.normalize() >= start_dt) &
+        (data['Sold Date'].dt.normalize() <= end_dt) &
         (data['Sold Price'].between(min_price, max_price)) &
         (data['Days On Market'].between(dom_range[0], dom_range[1])) &
         (data['Year Built'].isin(selected_years) if selected_years else True) &
@@ -442,28 +445,26 @@ def main():
     # Section 3: Bottom-Performing Agents
     st.subheader("Bottom-Performing Agents")
 
-    # Filter for Noralta listing agents only
+    # Create separate datasets for Noralta agents in each role
     noralta_listing_agents_data = noralta_data[
-        noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+        (noralta_data['Listing Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
     ]
-
-    # Filter for Noralta buyer agents only
     noralta_buyer_agents_data = noralta_data[
-        noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate'
+        (noralta_data['Buyer Firm 1 - Office Name'] == 'Royal LePage Noralta Real Estate')
     ]
 
-    # Bottom 10 Performing Agents (Listings)
+    # Bottom 10 Listing Agents (only Noralta agents)
     bottom_listing_agents = noralta_listing_agents_data.groupby('Listing Agent 1 - Agent Name').agg({
-        'Listing ID #': 'count',  # Total deals
-        'Sold Price': 'sum'       # Revenue contribution
-    }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
+        'Listing ID #': 'count',
+        'Sold Price': 'sum'
+    }).nsmallest(10, 'Listing ID #').reset_index()
     bottom_listing_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
-    # Bottom 10 Performing Agents (Buyers)
+    # Bottom 10 Buyer Agents (only Noralta agents)
     bottom_buyer_agents = noralta_buyer_agents_data.groupby('Buyer Agent 1 - Agent Name').agg({
-        'Listing ID #': 'count',  # Total deals
-        'Sold Price': 'sum'       # Revenue contribution
-    }).nsmallest(10, 'Listing ID #').reset_index()  # Use nsmallest for bottom performers
+        'Listing ID #': 'count',
+        'Sold Price': 'sum'
+    }).nsmallest(10, 'Listing ID #').reset_index()
     bottom_buyer_agents.columns = ['Agent Name', 'Total Deals', 'Revenue Contribution']
 
     # Display tables
@@ -474,6 +475,7 @@ def main():
     with col2:
         st.write("**Bottom 10 Performing Agents (Buyers)**")
         st.dataframe(bottom_buyer_agents)
+
 
 
 if __name__ == "__main__":
