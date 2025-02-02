@@ -3,7 +3,7 @@ from pymongo import MongoClient, errors
 import time
 
 # Step 1: Load Excel File
-file_path = 'combined_data.csv'  # Update this with your file path
+file_path = 'combined_data (2).csv'  # Update this with your file path
 data = pd.read_csv(file_path)
 
 # Step 2: Connect to MongoDB
