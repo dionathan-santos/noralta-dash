@@ -68,8 +68,8 @@ def main():
     min_date = listings_data['Sold Date'].min()
     max_date = listings_data['Sold Date'].max()
     # Set default dates to 2024, but allow selection from full date range
-    default_start = datetime(2024, 1, 1)
-    default_end = datetime(2024, 12, 31)
+    default_start = datetime(2025, 1, 1)
+    default_end = datetime(2025, 1, 31)
 
     start_date = st.sidebar.date_input("Start Date",
     value=default_start,
@@ -103,11 +103,11 @@ def main():
 
     # Bathrooms Slider
     max_baths = int(listings_data['Total Baths'].max())
-    bath_range = st.sidebar.slider("Number of Bathrooms", 1, max_baths, (1, max_baths))
+    bath_range = st.sidebar.slider("Number of Bathrooms", 1, max_baths, (0, max_baths))
 
     # Bedrooms Slider
     max_beds = int(listings_data['Total Bedrooms'].max())
-    bed_range = st.sidebar.slider("Number of Bedrooms", 1, max_beds, (1, max_beds))
+    bed_range = st.sidebar.slider("Number of Bedrooms", 1, max_beds, (0, max_beds))
 
     # Price Range
     max_price = int(listings_data['Sold Price'].max())
@@ -118,7 +118,7 @@ def main():
         min_price, max_price = 0, listings_data['Sold Price'].max()
 
     # Days on Market Slider
-    dom_range = st.sidebar.slider("Days on Market", 0, 201, (0, 200))
+    dom_range = st.sidebar.slider("Days on Market", 0, 1001, (0, 1000))
 
     # Year Built
     years = sorted(listings_data['Year Built'].dropna().unique())
