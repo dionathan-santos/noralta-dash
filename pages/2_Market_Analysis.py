@@ -333,6 +333,8 @@ def main():
     # Display dataframe with all relevant transactions
     st.dataframe(
         filtered_data[[
+            'Listing ID #',
+            'Linc #',
             'Sold Date', 
             'Listing Agent 1 - Agent Name',
             'Buyer Agent 1 - Agent Name',
