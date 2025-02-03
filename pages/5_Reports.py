@@ -106,7 +106,6 @@ def main():
         title="Number of Properties Sold in January (2023 vs 2024 vs 2025)",
         text_auto=True
     )
-    fig_sales_volume.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_sales_volume)
 
     # 2. Price Trends: Average Sold Price and List Price in January per year
@@ -120,7 +119,6 @@ def main():
         labels={"value": "Price", "variable": "Price Type"},
         text_auto=True
     )
-    fig_price_trends.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_price_trends)
 
     # ---------------------------
@@ -137,12 +135,10 @@ def main():
         barmode='group',
         title="Distribution of Total Bedrooms in January (by Year)",
         text_auto=True,
-        height=600  # Increased plot height to give more room for data labels
+        height=600
     )
     fig_bedrooms.update_traces(textposition='outside')
-    # Increase bottom margin in case labels extend below the plot area
     fig_bedrooms.update_layout(margin=dict(b=150))
-    fig_bedrooms.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_bedrooms, use_container_width=True)
 
     # Distribution of Total Floor Area (SF) with more contrast colours
@@ -158,17 +154,15 @@ def main():
         text_auto=True
     )
     fig_area.update_traces(textposition='inside')
-    fig_area.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_area)
 
     # Property Class distribution (pie chart – labels shown)
     fig_prop_class = px.pie(
         jan_data,
         names='Property Class',
-        title="Property Class Distribution in January (Overall)",
+        title="Property Class Distribution in January (Overall)"
     )
     fig_prop_class.update_traces(textinfo='percent+label')
-    fig_prop_class.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_prop_class)
 
     # B. Buyer Preference Dynamics: Trends in property types and styles
@@ -183,7 +177,6 @@ def main():
     )
     fig_prop_type.update_traces(textposition='outside')
     fig_prop_type.update_layout(margin=dict(b=150))
-    fig_prop_type.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_prop_type, use_container_width=True)
 
     fig_style = px.histogram(
@@ -197,7 +190,6 @@ def main():
     )
     fig_style.update_traces(textposition='outside')
     fig_style.update_layout(margin=dict(b=150))
-    fig_style.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_style, use_container_width=True)
 
     # ---------------------------
@@ -219,7 +211,6 @@ def main():
         title="Sales by Property Age Category in January (2023 vs 2024 vs 2025)",
         text_auto=True
     )
-    fig_age_seg.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_age_seg)
 
     # ---------------------------
@@ -248,14 +239,13 @@ def main():
         x="Community",
         y="Count",
         color="Age Category",
-        barmode='group',
+        barmode="group",
         title="Sales by Property Age Category for Top Communities",
         text_auto=True,
         height=600
     )
     fig_age_comm.update_traces(textposition='outside')
     fig_age_comm.update_layout(margin=dict(b=150))
-    fig_age_comm.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_age_comm, use_container_width=True)
     
     # B. Sales by Total Bedrooms (by Community)
@@ -271,7 +261,6 @@ def main():
         text_auto=True
     )
     fig_bedrooms_comm.update_traces(textposition='outside')
-    fig_bedrooms_comm.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_bedrooms_comm)
     
     # C. Sales by Total Baths (by Community)
@@ -287,7 +276,6 @@ def main():
         text_auto=True
     )
     fig_baths_comm.update_traces(textposition='outside')
-    fig_baths_comm.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_baths_comm)
     
     # D. Sales by Total Floor Area (SF) Ranges (by Community)
@@ -306,7 +294,6 @@ def main():
         text_auto=True
     )
     fig_size_comm.update_traces(textposition='inside')
-    fig_size_comm.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_size_comm)
     
     # E. Sales by Days On Market (DOM) Ranges (by Community)
@@ -325,7 +312,6 @@ def main():
         text_auto=True
     )
     fig_dom_comm.update_traces(textposition='inside')
-    fig_dom_comm.update_traces(texttemplate='<b>%{text}</b>')
     st.plotly_chart(fig_dom_comm)
     
     # ---------------------------
