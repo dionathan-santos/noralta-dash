@@ -89,7 +89,7 @@ def load_and_normalize_data(mongodb_uri, database_name):
 def create_sidebar_filters(listings_data):
     st.sidebar.header("Filters")
     start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
-    end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
+    end_date = st.sidebar.date_input("End Date", pd.Timestamp("2025-01-31"))
     selected_cities = st.sidebar.multiselect("Select Area/City", sorted(listings_data['Area/City'].dropna().unique()))
     selected_communities = st.sidebar.multiselect("Select Community", sorted(listings_data['Community'].dropna().unique()))
     selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['Building Type'].dropna().unique()))
