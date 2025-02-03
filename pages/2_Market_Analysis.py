@@ -325,36 +325,6 @@ def main():
 
 
 
-    # Add transaction table at the end of the page before main() closure
-    # Section 6: Transaction Details
-    st.subheader("Transaction Details")
-    st.write(f"Showing all {len(filtered_data)} transactions closed by Noralta")
-    
-    # Display dataframe with all relevant transactions
-    st.dataframe(
-        filtered_data[[
-            'Listing ID #',
-            'Linc #',
-            'Sold Date', 
-            'Listing Agent 1 - Agent Name',
-            'Buyer Agent 1 - Agent Name',
-            'Sold Price',
-            'Community',
-            'Days On Market',
-            'Property Class'
-        ]].sort_values('Sold Date', ascending=False),
-        height=600
-    )
-    
-    # Add raw data expander
-    with st.expander("View Raw Transaction Data"):
-        st.write("Full transaction data including all fields:")
-        st.dataframe(filtered_data)
-
-
-
-
-
 
     # Check if community_metrics is not empty before filtering
     if not community_metrics.empty:
@@ -398,6 +368,37 @@ def main():
         st.plotly_chart(fig_heatmap)
     else:
         st.warning("No data available for the selected filters.")
+
+
+
+
+
+
+    # Add transaction table at the end of the page before main() closure
+    # Section 6: Transaction Details
+    st.subheader("Transaction Details")
+    st.write(f"Showing all {len(filtered_data)} transactions closed by Noralta")
+    
+    # Display dataframe with all relevant transactions
+    st.dataframe(
+        filtered_data[[
+            'Listing ID #',
+            'Sold Date', 
+            'Listing Agent 1 - Agent Name',
+            'Buyer Agent 1 - Agent Name',
+            'Sold Price',
+            'Community',
+            'Days On Market',
+            'Property Class'
+        ]].sort_values('Sold Date', ascending=False),
+        height=600
+    )
+    
+    # Add raw data expander
+    with st.expander("View Raw Transaction Data"):
+        st.write("Full transaction data including all fields:")
+        st.dataframe(filtered_data)
+
 
 if __name__ == "__main__":
     main()
