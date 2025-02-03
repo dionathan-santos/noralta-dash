@@ -106,6 +106,8 @@ def main():
         title="Number of Properties Sold in January (2023 vs 2024 vs 2025)",
         text_auto=True
     )
+    # Update data label font: increase size and use a bold font family (e.g., "Arial Bold")
+    fig_sales_volume.update_traces(textfont=dict(size=18, family="Arial Bold", color="black"))
     st.plotly_chart(fig_sales_volume)
 
     # 2. Price Trends: Average Sold Price and List Price in January per year
