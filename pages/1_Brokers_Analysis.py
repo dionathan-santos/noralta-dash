@@ -72,18 +72,40 @@ def color_offices(index_values):
 
 # Load and normalize data
 def load_and_normalize_data(mongodb_uri, database_name):
-    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
-    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
+    try:
+        listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+        brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
 
-    for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
-        listings_data = normalize_office_names(listings_data, col)
-    brokerage_data = normalize_office_names(brokerage_data, 'Broker')
+        if listings_data is None or brokerage_data is None:
+            st.error("Failed to retrieve data from MongoDB")
+            return pd.DataFrame(), pd.DataFrame()
 
-    # Add format to both date columns
-    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
-    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
+        # Normalize office names
+        for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
+            if col in listings_data.columns:
+                listings_data = normalize_office_names(listings_data, col)
+        
+        if 'Broker' in brokerage_data.columns:
+            brokerage_data = normalize_office_names(brokerage_data, 'Broker')
 
-    return listings_data, brokerage_data
+        # Handle date columns with error checking
+        if 'Sold Date' in listings_data.columns:
+            listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
+        else:
+            st.error("Missing 'Sold Date' column in listings data")
+            listings_data['Sold Date'] = pd.NaT
+
+        if 'Date' in brokerage_data.columns:
+            brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
+        else:
+            st.error("Missing 'Date' column in brokerage data")
+            brokerage_data['Date'] = pd.NaT
+
+        return listings_data, brokerage_data
+
+    except Exception as e:
+        st.error(f"Error loading data: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()
 
 # Sidebar filters
 def create_sidebar_filters(listings_data):
