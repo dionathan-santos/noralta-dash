@@ -72,40 +72,39 @@ def color_offices(index_values):
 
 # Load and normalize data
 def load_and_normalize_data(mongodb_uri, database_name):
-    try:
-        listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
-        brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
-
-        if listings_data is None or brokerage_data is None:
-            st.error("Failed to retrieve data from MongoDB")
-            return pd.DataFrame(), pd.DataFrame()
-
-        # Normalize office names
-        for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
-            if col in listings_data.columns:
-                listings_data = normalize_office_names(listings_data, col)
-        
-        if 'Broker' in brokerage_data.columns:
-            brokerage_data = normalize_office_names(brokerage_data, 'Broker')
-
-        # Handle date columns with error checking
-        if 'Sold Date' in listings_data.columns:
-            listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
-        else:
-            st.error("Missing 'Sold Date' column in listings data")
-            listings_data['Sold Date'] = pd.NaT
-
-        if 'Date' in brokerage_data.columns:
-            brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
-        else:
-            st.error("Missing 'Date' column in brokerage data")
-            brokerage_data['Date'] = pd.NaT
-
-        return listings_data, brokerage_data
-
-    except Exception as e:
-        st.error(f"Error loading data: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame()
+    # Retrieve data from MongoDB for listings
+    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+    
+    # Debug output: Print the columns available in the listings data for troubleshooting
+    st.write("Columns in listings data:", listings_data.columns.tolist())
+    
+    # Retrieve brokerage data
+    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
+    
+    # Normalize office names for listings and brokerage data
+    for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
+        listings_data = normalize_office_names(listings_data, col)
+    brokerage_data = normalize_office_names(brokerage_data, 'Broker')
+    
+    # Check and convert the Sold Date column if it exists
+    if 'Sold Date' in listings_data.columns:
+        listings_data['Sold Date'] = pd.to_datetime(
+            listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce'
+        )
+    else:
+        st.error("Missing 'Sold Date' column in listings data: " + str(listings_data.columns.tolist()))
+        listings_data['Sold Date'] = pd.NaT
+    
+    # Check and convert the Date column for brokerage data if it exists
+    if 'Date' in brokerage_data.columns:
+        brokerage_data['Date'] = pd.to_datetime(
+            brokerage_data['Date'], format='%m/%d/%Y', errors='coerce'
+        )
+    else:
+        st.error("Missing 'Date' column in brokerage data: " + str(brokerage_data.columns.tolist()))
+        brokerage_data['Date'] = pd.NaT
+    
+    return listings_data, brokerage_data
 
 # Sidebar filters
 def create_sidebar_filters(listings_data):
