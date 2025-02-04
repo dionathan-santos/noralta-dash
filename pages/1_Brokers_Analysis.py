@@ -4,9 +4,6 @@ import pandas as pd
 from utils.data_utils import get_mongodb_data
 import locale
 
-
-#### git add . ; git commit -m "test 6" ; git push origin main  
-
 # Normalize office names
 def normalize_office_names(data, column_name):
     if column_name in data.columns:
@@ -15,19 +12,10 @@ def normalize_office_names(data, column_name):
 
 # Filter data function
 def filter_data(data, start_date, end_date, selected_cities=None, selected_communities=None, selected_building_types=None, selected_firms=None):
-    # Add explicit date format and normalize dates
-    data['Sold Date'] = pd.to_datetime(data['Sold Date'], format='%m/%d/%Y', errors='coerce')
+    data['Sold Date'] = pd.to_datetime(data['Sold Date'], errors='coerce')
     data = data[data['Sold Date'].notna()]
 
-    # Convert input dates to pandas timestamps and normalize
-    start_dt = pd.to_datetime(start_date).normalize()
-    end_dt = pd.to_datetime(end_date).normalize()
-
-    # Filter with normalized dates
-    filtered_data = data[
-        (data['Sold Date'].dt.normalize() >= start_dt) & 
-        (data['Sold Date'].dt.normalize() <= end_dt)
-    ]
+    filtered_data = data[(data['Sold Date'] >= pd.Timestamp(start_date)) & (data['Sold Date'] <= pd.Timestamp(end_date))]
 
     if selected_cities:
         filtered_data = filtered_data[filtered_data['Area/City'].isin(selected_cities)]
@@ -72,40 +60,15 @@ def color_offices(index_values):
 
 # Load and normalize data
 def load_and_normalize_data(mongodb_uri, database_name):
-    # Retrieve data with error handling
-    try:
-        listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
-        brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
-    except Exception as e:
-        st.error(f"Failed to load data from MongoDB: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame()
+    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
 
-    # Validate listings data structure
-    required_listing_columns = ['Sold Date', 'Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']
-    if not all(col in listings_data.columns for col in required_listing_columns):
-        missing = [col for col in required_listing_columns if col not in listings_data.columns]
-        st.error(f"Listings data missing critical columns: {', '.join(missing)}")
-        st.write("Received columns:", listings_data.columns.tolist())
-        return pd.DataFrame(), pd.DataFrame()
-
-    # Validate brokerage data structure
-    if 'Date' not in brokerage_data.columns:
-        st.error("Brokerage data missing 'Date' column")
-        return pd.DataFrame(), pd.DataFrame()
-
-    # Normalization and date conversion
     for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
         listings_data = normalize_office_names(listings_data, col)
-
     brokerage_data = normalize_office_names(brokerage_data, 'Broker')
 
-    # Convert dates with validation
-    try:
-        listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
-        brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
-    except KeyError as e:
-        st.error(f"Date conversion failed: {str(e)}")
-        return pd.DataFrame(), pd.DataFrame()
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
+    brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], errors='coerce')
 
     return listings_data, brokerage_data
 
@@ -113,7 +76,7 @@ def load_and_normalize_data(mongodb_uri, database_name):
 def create_sidebar_filters(listings_data):
     st.sidebar.header("Filters")
     start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
-    end_date = st.sidebar.date_input("End Date", pd.Timestamp("2025-01-31"))
+    end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
     selected_cities = st.sidebar.multiselect("Select Area/City", sorted(listings_data['Area/City'].dropna().unique()))
     selected_communities = st.sidebar.multiselect("Select Community", sorted(listings_data['Community'].dropna().unique()))
     selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['Building Type'].dropna().unique()))
@@ -128,9 +91,8 @@ def create_sidebar_filters(listings_data):
 def main():
     st.title("Brokers Analysis Dashboard")
 
-    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+    mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
     database_name = "real_estate"
-    
 
     listings_data, brokerage_data = load_and_normalize_data(mongodb_uri, database_name)
 
