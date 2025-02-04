@@ -72,38 +72,41 @@ def color_offices(index_values):
 
 # Load and normalize data
 def load_and_normalize_data(mongodb_uri, database_name):
-    # Retrieve data from MongoDB for listings
-    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
-    
-    # Debug output: Print the columns available in the listings data for troubleshooting
-    st.write("Columns in listings data:", listings_data.columns.tolist())
-    
-    # Retrieve brokerage data
-    brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
-    
-    # Normalize office names for listings and brokerage data
+    # Retrieve data with error handling
+    try:
+        listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+        brokerage_data = get_mongodb_data(mongodb_uri, database_name, "brokerage")
+    except Exception as e:
+        st.error(f"Failed to load data from MongoDB: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Validate listings data structure
+    required_listing_columns = ['Sold Date', 'Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']
+    if not all(col in listings_data.columns for col in required_listing_columns):
+        missing = [col for col in required_listing_columns if col not in listings_data.columns]
+        st.error(f"Listings data missing critical columns: {', '.join(missing)}")
+        st.write("Received columns:", listings_data.columns.tolist())
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Validate brokerage data structure
+    if 'Date' not in brokerage_data.columns:
+        st.error("Brokerage data missing 'Date' column")
+        return pd.DataFrame(), pd.DataFrame()
+
+    # Normalization and date conversion
     for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
         listings_data = normalize_office_names(listings_data, col)
+
     brokerage_data = normalize_office_names(brokerage_data, 'Broker')
-    
-    # Check and convert the Sold Date column if it exists
-    if 'Sold Date' in listings_data.columns:
-        listings_data['Sold Date'] = pd.to_datetime(
-            listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce'
-        )
-    else:
-        st.error("Missing 'Sold Date' column in listings data: " + str(listings_data.columns.tolist()))
-        listings_data['Sold Date'] = pd.NaT
-    
-    # Check and convert the Date column for brokerage data if it exists
-    if 'Date' in brokerage_data.columns:
-        brokerage_data['Date'] = pd.to_datetime(
-            brokerage_data['Date'], format='%m/%d/%Y', errors='coerce'
-        )
-    else:
-        st.error("Missing 'Date' column in brokerage data: " + str(brokerage_data.columns.tolist()))
-        brokerage_data['Date'] = pd.NaT
-    
+
+    # Convert dates with validation
+    try:
+        listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], format='%m/%d/%Y', errors='coerce')
+        brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], format='%m/%d/%Y', errors='coerce')
+    except KeyError as e:
+        st.error(f"Date conversion failed: {str(e)}")
+        return pd.DataFrame(), pd.DataFrame()
+
     return listings_data, brokerage_data
 
 # Sidebar filters
