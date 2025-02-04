@@ -67,8 +67,7 @@ def load_and_normalize_data(mongodb_uri, database_name):
         listings_data = normalize_office_names(listings_data, col)
     brokerage_data = normalize_office_names(brokerage_data, 'Broker')
 
-    if 'Sold Date' in listings_data.columns:
-        listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
+    listings_data['Sold Date'] = pd.to_datetime(listings_data['Sold Date'], errors='coerce')
     brokerage_data['Date'] = pd.to_datetime(brokerage_data['Date'], errors='coerce')
 
     return listings_data, brokerage_data
