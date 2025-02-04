@@ -7,7 +7,7 @@ file_path = 'combined_data (2).csv'  # Update this with your file path
 data = pd.read_csv(file_path)
 
 # Step 2: Connect to MongoDB
-mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
 
 # Retry logic for connecting to MongoDB
 for _ in range(5):  # Retry up to 5 times

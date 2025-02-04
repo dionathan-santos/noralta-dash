@@ -26,7 +26,7 @@ def main():
     st.title("Noralta Analysis Dashboard")
 
     # MongoDB connection
-    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+    mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
     database_name = "real_estate"
     collection_name = "listings"
 

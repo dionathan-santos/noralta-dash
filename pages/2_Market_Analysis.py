@@ -49,7 +49,7 @@ def main():
     st.title("Real Estate Market Analysis Dashboard")
 
     # Your existing MongoDB connection details
-    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+    mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
     database_name = "real_estate"
 
     # Load data
