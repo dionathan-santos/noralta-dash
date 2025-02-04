@@ -91,7 +91,7 @@ def create_sidebar_filters(listings_data):
 def main():
     st.title("Brokers Analysis Dashboard")
 
-    mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
+    mongodb_uri = "mongodb+srv://dionathan:910213200287@cluster0.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0"
     database_name = "real_estate"
 
     listings_data, brokerage_data = load_and_normalize_data(mongodb_uri, database_name)
