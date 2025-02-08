@@ -12,10 +12,11 @@ st.title("Agent Performance Dashboard")
 def get_aws_credentials():
     """Retrieves AWS credentials from Streamlit secrets."""
     try:
+        aws_secrets = st.secrets["aws"]  # Get the entire 'aws' dictionary
         return (
-            st.secrets["AWS_ACCESS_KEY_ID"],
-            st.secrets["AWS_SECRET_ACCESS_KEY"],
-            st.secrets.get("AWS_REGION", "us-east-2")
+            aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            aws_secrets.get("AWS_REGION", "us-east-2")  # Default to us-east-2 if not set
         )
     except KeyError as e:
         available_keys = list(st.secrets.keys())
