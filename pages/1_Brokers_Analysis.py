@@ -18,6 +18,41 @@ from boto3.dynamodb.conditions import Key
 # AWS Credentials and Data Retrieval Functions
 # =============================================================================
 
+def get_aws_credentials():
+    """Get AWS credentials from Streamlit secrets."""
+    try:
+        aws_secrets = st.secrets["aws"]
+        return (
+            aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            aws_secrets["AWS_REGION"]
+        )
+    except Exception as e:
+        st.error(f"Failed to get AWS credentials: {str(e)}")
+        return None, None, None
+
+def load_and_normalize_data():
+    """
+    Loads and normalizes data from DynamoDB tables.
+
+    Returns:
+        tuple: (listings_df, brokerage_df)
+    """
+    # Use correct table name 'real_estate_listings' instead of 'listings'
+    listings_df = get_dynamodb_data('real_estate_listings')
+    brokerage_df = get_dynamodb_data('brokerage')
+
+    # Normalize office names
+    if not listings_df.empty:
+        for col in ['Listing Firm 1 - Office Name', 'Buyer Firm 1 - Office Name']:
+            if col in listings_df.columns:
+                listings_df[col] = listings_df[col].str.lower().str.strip()
+
+    if not brokerage_df.empty and 'Broker' in brokerage_df.columns:
+        brokerage_df['Broker'] = brokerage_df['Broker'].str.lower().str.strip()
+
+    return listings_df, brokerage_df
+
 def get_dynamodb_data(table_name):
     """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
@@ -31,14 +66,12 @@ def get_dynamodb_data(table_name):
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        # Get table
         table = dynamodb.Table(table_name)
 
-        # Scan table with pagination
         items = []
         last_evaluated_key = None
 
-        while True:  # Add the while loop here
+        while True:
             if last_evaluated_key:
                 response = table.scan(ExclusiveStartKey=last_evaluated_key)
             else:
@@ -50,8 +83,7 @@ def get_dynamodb_data(table_name):
             if not last_evaluated_key:
                 break
 
-        # Convert to DataFrame
-        df = pd.DataFrame(items)
+        
 
         # Handle date columns based on table
         if table_name == 'real_estate_listings' and 'Sold Date' in df.columns:
