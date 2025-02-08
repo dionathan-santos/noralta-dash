@@ -10,6 +10,7 @@ st.title("Agent Performance Dashboard")
 
 # Function to retrieve AWS credentials from Streamlit secrets
 def get_aws_credentials():
+    """Retrieves AWS credentials from Streamlit secrets."""
     try:
         return (
             st.secrets["AWS_ACCESS_KEY_ID"],
