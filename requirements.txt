@@ -6,5 +6,6 @@ folium
 streamlit-folium==0.7.0
 folium==0.12.1
 seaborn
+boto3
 pymongo==4.6.1
 numpy
