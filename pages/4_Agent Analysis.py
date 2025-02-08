@@ -3,15 +3,13 @@ import pandas as pd
 import plotly.express as px
 import boto3
 import os
-from decimal import Decimal
-from utils.config import get_aws_credentials
 
 # Set page title and layout
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
+# Function to retrieve AWS credentials from Streamlit secrets
 def get_aws_credentials():
-    """Retrieves AWS credentials from Streamlit secrets."""
     try:
         return (
             st.secrets["AWS_ACCESS_KEY_ID"],
@@ -23,44 +21,61 @@ def get_aws_credentials():
         st.error(f"Missing AWS credentials. Available keys: {available_keys}")
         return None, None, None
 
-# Function to fetch all data from DynamoDB
+# Function to fetch data from DynamoDB
 def get_dynamodb_data():
-    """ Fetch data from DynamoDB and convert to Pandas DataFrame. """
-    items = []
-    last_evaluated_key = None
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+    try:
+        aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+        if not aws_access_key or not aws_secret_key:
+            st.error("AWS credentials are missing. Check Streamlit secrets configuration.")
+            return pd.DataFrame()
 
-    # Handle pagination for large datasets
-    while True:
-        if last_evaluated_key:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key)
-        else:
-            response = table.scan()
+        # Initialize DynamoDB
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
 
-        items.extend(response.get('Items', []))
-        last_evaluated_key = response.get('LastEvaluatedKey')
+        # Define your DynamoDB table name
+        table_name = "real_estate_listings"  # Replace with your actual table name
+        table = dynamodb.Table(table_name)
 
-        if not last_evaluated_key:
-            break
+        # Fetch all items (handle pagination)
+        items = []
+        last_evaluated_key = None
 
-    return pd.DataFrame(items)
+        while True:
+            if last_evaluated_key:
+                response = table.scan(ExclusiveStartKey=last_evaluated_key)
+            else:
+                response = table.scan()
+
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+
+            if not last_evaluated_key:
+                break
+
+        return pd.DataFrame(items)
+
+    except Exception as e:
+        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        return pd.DataFrame()
 
 # Load data from AWS DynamoDB
-try:
-    listings_data = get_dynamodb_data()
-except Exception as e:
-    st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
-    st.stop()
+listings_data = get_dynamodb_data()
 
-# Convert Sold Date to datetime format
-if not listings_data.empty:
-    listings_data['sold_date'] = pd.to_datetime(
-        listings_data['sold_date'], errors='coerce'
-    ).dt.normalize()
-
-# Check if data is loaded
+# Ensure data is loaded
 if listings_data.empty:
     st.error("No data available to display!")
     st.stop()
+
+# Convert 'sold_date' to datetime format
+listings_data['sold_date'] = pd.to_datetime(
+    listings_data['sold_date'], errors='coerce'
+).dt.normalize()
 
 # Sidebar filters
 st.sidebar.header("Filters")
@@ -113,14 +128,12 @@ def filter_data(data, start_date, end_date, selected_agent, selected_cities, sel
     end_dt = pd.to_datetime(end_date).normalize()
 
     filtered_data = data[
-        (data['sold_date'].dt.normalize() >= start_dt) &
-        (data['sold_date'].dt.normalize() <= end_dt)
+        (data['sold_date'].dt.normalize() >= start_dt) & (data['sold_date'].dt.normalize() <= end_dt)
     ]
 
     # Filter by agent (listing or buyer)
     filtered_data = filtered_data[
-        (filtered_data['listing_agent'] == selected_agent) |
-        (filtered_data['buyer_agent'] == selected_agent)
+        (filtered_data['listing_agent'] == selected_agent) | (filtered_data['buyer_agent'] == selected_agent)
     ]
 
     # Apply additional filters
@@ -182,12 +195,3 @@ fig_community_deals = px.bar(
     labels={'community': 'Community', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_community_deals, use_container_width=True)
-
-# Deals by Building Type Bar Chart
-building_type_deals = filtered_data.groupby('building_type').size().reset_index(name='Deals')
-fig_building_type = px.bar(
-    building_type_deals, x='building_type', y='Deals',
-    title=f"Deals by Building Type for {selected_agent}",
-    labels={'building_type': 'Building Type', 'Deals': 'Number of Deals'}
-)
-st.plotly_chart(fig_building_type, use_container_width=True)
