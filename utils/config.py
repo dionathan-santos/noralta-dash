@@ -1,63 +1,63 @@
 import os
 import streamlit as st
-import json
 
 def get_aws_credentials():
     """
-    Get AWS credentials from either Streamlit secrets or environment variables.
+    Get AWS credentials from Streamlit secrets.
     Returns a tuple of (access_key, secret_key, region)
     """
-    # Debug: Print out all available secrets
-    try:
-        st.write("Available Secrets:", json.dumps(dict(st.secrets), indent=2))
-    except Exception as e:
-        st.write(f"Error accessing secrets: {e}")
+    # Debugging: Print available secret keys
+    st.write("Available Secrets Keys:", list(st.secrets.keys()))
 
-    # Try multiple ways to access credentials
-    aws_access_key = None
-    aws_secret_key = None
-    aws_region = "us-east-2"
-
-    # Multiple access methods
-    credential_attempts = [
-        # Direct root-level access
-        lambda: (st.secrets.get("AWS_ACCESS_KEY_ID"), st.secrets.get("AWS_SECRET_ACCESS_KEY")),
+    # Credential retrieval methods
+    credential_methods = [
+        # 1. Direct root-level access
+        lambda: (
+            st.secrets.get("AWS_ACCESS_KEY_ID"),
+            st.secrets.get("AWS_SECRET_ACCESS_KEY")
+        ),
         
-        # AWS section access
-        lambda: (st.secrets.get("aws", {}).get("AWS_ACCESS_KEY_ID"), 
-                 st.secrets.get("aws", {}).get("AWS_SECRET_ACCESS_KEY")),
+        # 2. AWS section access
+        lambda: (
+            st.secrets.get("aws", {}).get("AWS_ACCESS_KEY_ID"),
+            st.secrets.get("aws", {}).get("AWS_SECRET_ACCESS_KEY")
+        ),
         
-        # Dictionary-style access
-        lambda: (st.secrets.get("AWS_ACCESS_KEY_ID"), st.secrets.get("AWS_SECRET_ACCESS_KEY")),
-        
-        # Environment variables fallback
-        lambda: (os.environ.get("AWS_ACCESS_KEY_ID"), os.environ.get("AWS_SECRET_ACCESS_KEY"))
+        # 3. Environment variables fallback
+        lambda: (
+            os.environ.get("AWS_ACCESS_KEY_ID"),
+            os.environ.get("AWS_SECRET_ACCESS_KEY")
+        )
     ]
 
-    # Try each method to get credentials
-    for attempt in credential_attempts:
+    # Try each credential retrieval method
+    for method in credential_methods:
         try:
-            aws_access_key, aws_secret_key = attempt()
+            aws_access_key, aws_secret_key = method()
             if aws_access_key and aws_secret_key:
-                break
+                # Mask the keys for logging
+                masked_access_key = f"{aws_access_key[:4]}...{aws_access_key[-4:]}"
+                st.info(f"AWS Access Key found: {masked_access_key}")
+                return aws_access_key, aws_secret_key, "us-east-2"
         except Exception as e:
-            st.write(f"Credentials attempt failed: {e}")
+            st.write(f"Credential method failed: {e}")
 
-    # Verify we have the required credentials
-    if not aws_access_key or not aws_secret_key:
-        error_message = """
-        AWS credentials not found. Please configure:
-        1. Streamlit Cloud Secrets with:
-           - AWS_ACCESS_KEY_ID
-           - AWS_SECRET_ACCESS_KEY
-        2. Or set environment variables:
-           - AWS_ACCESS_KEY_ID
-           - AWS_SECRET_ACCESS_KEY
-        
-        Current available secrets: {}
-        """.format(list(st.secrets.keys()) if hasattr(st, 'secrets') else "No secrets found")
-        
-        st.error(error_message)
-        raise ValueError(error_message)
+    # If no credentials found
+    error_message = """
+    ❌ AWS Credentials Configuration Error ❌
 
-    return aws_access_key, aws_secret_key, aws_region
+    Credentials could not be found. Please configure:
+
+    Option 1: Streamlit Cloud Secrets
+    - Add AWS_ACCESS_KEY_ID
+    - Add AWS_SECRET_ACCESS_KEY
+
+    Option 2: Environment Variables
+    - Set AWS_ACCESS_KEY_ID
+    - Set AWS_SECRET_ACCESS_KEY
+
+    Current available secret keys: {}
+    """.format(list(st.secrets.keys()))
+    
+    st.error(error_message)
+    raise ValueError(error_message)

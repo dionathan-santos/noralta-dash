@@ -10,6 +10,9 @@ from utils.config import get_aws_credentials
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
+# AWS Credentials and DynamoDB Connection
+st.info("Attempting to connect to AWS DynamoDB...")
+
 try:
     # Get AWS credentials from config
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
@@ -24,8 +27,24 @@ try:
 
     table = dynamodb.Table('real_estate_listings')
 
+    # Verify table exists and is accessible
+    try:
+        response = table.scan(Limit=1)
+        st.success("Successfully connected to DynamoDB!")
+    except Exception as table_error:
+        st.error(f"Error accessing DynamoDB table: {table_error}")
+        st.error("Please check your AWS credentials and table permissions.")
+        st.stop()
+
 except Exception as e:
-    st.error(f"Failed to initialize AWS connection: {str(e)}")
+    st.error("❌ AWS Connection Failed ❌")
+    st.error(f"Detailed Error: {str(e)}")
+    st.error("""
+    Troubleshooting Steps:
+    1. Verify AWS credentials in Streamlit Cloud Secrets
+    2. Ensure correct IAM permissions
+    3. Check network connectivity
+    """)
     st.stop()
 
 # Function to fetch all data from DynamoDB
