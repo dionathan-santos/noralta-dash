@@ -5,7 +5,7 @@ import boto3
 import os
 from decimal import Decimal
 import os
-from dotenv import load_dotenv
+#from dotenv import load_dotenv
 
 #load_dotenv()  # Load .env file
 

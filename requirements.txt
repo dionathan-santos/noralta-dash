@@ -9,3 +9,4 @@ seaborn
 boto3
 pymongo==4.6.1
 numpy
+dotenv
