@@ -19,24 +19,18 @@ from boto3.dynamodb.conditions import Key
 # =============================================================================
 
 def get_dynamodb_data(table_name):
-    """
-    Retrieves data from specified DynamoDB table.
 
-    Args:
-        table_name (str): Name of the DynamoDB table to query
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
 
-    Returns:
-        pd.DataFrame: Data from table as DataFrame
-    """
     try:
-        # Create DynamoDB resource
-        aws_secrets = st.secrets["aws"]
         dynamodb = boto3.resource(
-            'dynamodb',
-            aws_access_key_id=aws_secrets["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=aws_secrets["AWS_SECRET_ACCESS_KEY"],
-            region_name=aws_secrets.get("AWS_REGION", "us-east-2")
-        )
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
 
         # Get table
         table = dynamodb.Table(table_name)
