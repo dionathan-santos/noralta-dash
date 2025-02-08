@@ -1,30 +1,32 @@
 import streamlit as st
 import pandas as pd
 import plotly.express as px
-from utils.data_utils import get_mongodb_data  # Assuming this utility exists for MongoDB data fetching
+import boto3
+from decimal import Decimal
 
 # Set page title and layout
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
-def load_and_normalize_data(mongodb_uri, database_name):
-    listings_data = get_mongodb_data(mongodb_uri, database_name, "listings")
+# Initialize AWS DynamoDB
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+table = dynamodb.Table('real_estate_listings')
 
-    # Update date parsing with explicit format
-    listings_data['Sold Date'] = pd.to_datetime(
-        listings_data['Sold Date'],
-        format='%m/%d/%Y',
-        errors='coerce'
+# Function to fetch data from DynamoDB
+def get_dynamodb_data():
+    """ Fetch all data from DynamoDB table and convert to Pandas DataFrame. """
+    response = table.scan()  # Retrieve all records (consider pagination for large datasets)
+    data = response.get('Items', [])
+    return pd.DataFrame(data)
+
+# Load data from AWS DynamoDB
+listings_data = get_dynamodb_data()
+
+# Convert Sold Date to datetime format
+if not listings_data.empty:
+    listings_data['sold_date'] = pd.to_datetime(
+        listings_data['sold_date'], errors='coerce'
     ).dt.normalize()
-
-    return listings_data
-
-# MongoDB connection details
-mongodb_uri = "mongodb+srv://dionathan:19910213200287@cluster1.qndlz.mongodb.net/?retryWrites=true&w=majority&appName=Cluster1"
-database_name = "real_estate"
-
-# Load data
-listings_data = load_and_normalize_data(mongodb_uri, database_name)
 
 # Check if data is loaded
 if listings_data.empty:
@@ -39,23 +41,23 @@ start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
 
 # Agent name filter (searchable dropdown)
-all_agents = sorted(set(listings_data['Listing Agent 1 - Agent Name'].dropna().unique()) |
-                    set(listings_data['Buyer Agent 1 - Agent Name'].dropna().unique()))
+all_agents = sorted(set(listings_data['listing_agent'].dropna().unique()) |
+                    set(listings_data['buyer_agent'].dropna().unique()))
 selected_agent = st.sidebar.selectbox("Select Agent", all_agents)
 
 # Area/City filter
-selected_cities = st.sidebar.multiselect("Select Area/City", sorted(listings_data['Area/City'].dropna().unique()))
+selected_cities = st.sidebar.multiselect("Select Area/City", sorted(listings_data['area_city'].dropna().unique()))
 
 # Community filter
-selected_communities = st.sidebar.multiselect("Select Community", sorted(listings_data['Community'].dropna().unique()))
+selected_communities = st.sidebar.multiselect("Select Community", sorted(listings_data['community'].dropna().unique()))
 
 # Building type filter
-selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['Building Type'].dropna().unique()))
+selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['building_type'].dropna().unique()))
 
 # Calculate rankings for all agents (based on total deals)
 all_agents_deals = (
-    listings_data.groupby('Listing Agent 1 - Agent Name').size() +
-    listings_data.groupby('Buyer Agent 1 - Agent Name').size()
+    listings_data.groupby('listing_agent').size() +
+    listings_data.groupby('buyer_agent').size()
 ).sort_values(ascending=False).reset_index(name='Total Deals')
 
 # Rename the 'index' column to 'Agent Name'
@@ -82,30 +84,29 @@ selected_agent = selected_agent_by_rank
 selected_agent_rank = all_agents_deals[all_agents_deals['Agent Name'] == selected_agent]['Ranking'].values[0]
 st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank}")
 
+# Filter data based on sidebar selections
 def filter_data(data, start_date, end_date, selected_agent, selected_cities=None, selected_communities=None, selected_building_types=None):
-    # Convert input dates to pandas timestamps and normalize
     start_dt = pd.to_datetime(start_date).normalize()
     end_dt = pd.to_datetime(end_date).normalize()
 
-    # Update date comparison
     filtered_data = data[
-        (data['Sold Date'].dt.normalize() >= start_dt) &
-        (data['Sold Date'].dt.normalize() <= end_dt)
+        (data['sold_date'].dt.normalize() >= start_dt) &
+        (data['sold_date'].dt.normalize() <= end_dt)
     ]
 
     # Filter by agent (both listing and buyer sides)
     filtered_data = filtered_data[
-        (filtered_data['Listing Agent 1 - Agent Name'] == selected_agent) |
-        (filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent)
+        (filtered_data['listing_agent'] == selected_agent) |
+        (filtered_data['buyer_agent'] == selected_agent)
     ]
 
     # Apply additional filters
     if selected_cities:
-        filtered_data = filtered_data[filtered_data['Area/City'].isin(selected_cities)]
+        filtered_data = filtered_data[filtered_data['area_city'].isin(selected_cities)]
     if selected_communities:
-        filtered_data = filtered_data[filtered_data['Community'].isin(selected_communities)]
+        filtered_data = filtered_data[filtered_data['community'].isin(selected_communities)]
     if selected_building_types:
-        filtered_data = filtered_data[filtered_data['Building Type'].isin(selected_building_types)]
+        filtered_data = filtered_data[filtered_data['building_type'].isin(selected_building_types)]
 
     return filtered_data
 
@@ -117,164 +118,65 @@ if filtered_data.empty:
     st.warning("No data found for the selected filters!")
     st.stop()
 
-# Clean and convert 'Sold Price' to numeric
-filtered_data['Sold Price'] = pd.to_numeric(
-    filtered_data['Sold Price'].replace('[\$,]', '', regex=True),
-    errors='coerce'  # Convert invalid values to NaN
-)
+# Convert 'Sold Price' to numeric
+filtered_data['sold_price'] = pd.to_numeric(filtered_data['sold_price'], errors='coerce')
 
-# Check if 'Sold Price' contains NaN values
-if filtered_data['Sold Price'].isna().all():
-    st.error("No valid 'Sold Price' data found for the selected filters!")
-    st.stop()
-
-# Calculate total deals (listing + buyer)
-total_deals = (
-    filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent].shape[0] +
-    filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent].shape[0]
-)
-
-# Calculate gross sales
-gross_sales = filtered_data['Sold Price'].sum()
-
-# Calculate average price per deal
+# Calculate KPIs
+total_deals = filtered_data.shape[0]
+gross_sales = filtered_data['sold_price'].sum()
 average_price_per_deal = gross_sales / total_deals if total_deals > 0 else 0
-
-# Calculate market share
-total_market_deals = listings_data[
-    (listings_data['Sold Date'].notna()) &
-    (listings_data['Sold Date'] >= pd.Timestamp(start_date)) &
-    (listings_data['Sold Date'] <= pd.Timestamp(end_date))
-].shape[0]
-market_share = (total_deals / total_market_deals * 100) if total_market_deals > 0 else 0
-
-# Calculate ranking (compared to other agents)
-all_agents_deals = (
-    listings_data.groupby('Listing Agent 1 - Agent Name').size() +
-    listings_data.groupby('Buyer Agent 1 - Agent Name').size()
-).sort_values(ascending=False)
-agent_ranking = all_agents_deals.index.get_loc(selected_agent) + 1 if selected_agent in all_agents_deals.index else "N/A"
 
 # Display KPIs
 st.subheader(f"Performance Overview for {selected_agent.title()}")
 
-col1, col2, col3, col4, col5 = st.columns(5)
+col1, col2, col3 = st.columns(3)
 col1.metric("Total Deals Closed", total_deals)
 col2.metric("Total Gross Sales", f"${gross_sales:,.2f}")
 col3.metric("Average Price Per Deal", f"${average_price_per_deal:,.2f}")
-col4.metric("Market Share", f"{market_share:.2f}%")
-col5.metric("Ranking", agent_ranking)
 
-# Extract firms where the agent worked (listing and buyer sides)
-listing_firms = filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent]['Listing Firm 1 - Office Name'].dropna().unique()
-buyer_firms = filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent]['Buyer Firm 1 - Office Name'].dropna().unique()
+# Extract firms where the agent worked
+listing_firms = filtered_data[filtered_data['listing_agent'] == selected_agent]['listing_firm'].dropna().unique()
+buyer_firms = filtered_data[filtered_data['buyer_agent'] == selected_agent]['buyer_firm'].dropna().unique()
 
-# Combine and deduplicate firms
+# Combine firms
 all_firms = sorted(set(listing_firms) | set(buyer_firms))
+firm_info = f"Firms: {', '.join(all_firms)}" if all_firms else "No firms found."
 
-# Format the firm(s) information
-if len(all_firms) == 1:
-    firm_info = f"Firm: {all_firms[0]}"
-else:
-    firm_info = f"Firms: {', '.join(all_firms)}"
-
-# Display the firm(s) information below the KPIs
 st.markdown(firm_info)
 
-# Group by month and calculate deals
-filtered_data['Month'] = filtered_data['Sold Date'].dt.to_period('M').dt.to_timestamp()
+# Monthly Deals Line Chart
+filtered_data['Month'] = filtered_data['sold_date'].dt.to_period('M').dt.to_timestamp()
 monthly_deals = filtered_data.groupby('Month').size().reset_index(name='Deals')
 
-# Plot line chart
 fig_monthly_deals = px.line(
-    monthly_deals,
-    x='Month',
-    y='Deals',
+    monthly_deals, x='Month', y='Deals',
     title=f"Monthly Deals for {selected_agent.title()}",
-    labels={'Month': 'Month', 'Deals': 'Number of Deals'},
-    hover_data={'Deals': ':.0f'}
-)
-fig_monthly_deals.update_traces(mode='lines+markers', marker=dict(size=8))
-fig_monthly_deals.update_layout(
-    xaxis=dict(tickangle=-45),
-    margin=dict(b=120)
+    labels={'Month': 'Month', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_monthly_deals, use_container_width=True)
 
-# Group by month and calculate gross sales
-monthly_gross_sales = filtered_data.groupby('Month')['Sold Price'].sum().reset_index()
-
-# Plot line chart
-fig_gross_sales = px.line(
-    monthly_gross_sales,
-    x='Month',
-    y='Sold Price',
-    title=f"Monthly Gross Sales for {selected_agent.title()}",
-    labels={'Month': 'Month', 'Sold Price': 'Gross Sales ($)'},
-    hover_data={'Sold Price': ':.2f'}
-)
-fig_gross_sales.update_traces(mode='lines+markers', marker=dict(size=8))
-fig_gross_sales.update_layout(
-    xaxis=dict(tickangle=-45),
-    margin=dict(b=120)
-)
-st.plotly_chart(fig_gross_sales, use_container_width=True)
-
-# Group by community and calculate total deals
-community_deals = filtered_data.groupby('Community').size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
-
-# Group by community and calculate total deals
-community_deals = filtered_data.groupby(['Community', 'Area/City']).size().reset_index(name='Deals').sort_values(by='Deals', ascending=False).head(10)
-
-# Plot bar chart for top 10 communities
+# Deals by Community Bar Chart
+community_deals = filtered_data.groupby(['community', 'area_city']).size().reset_index(name='Deals')
 fig_community_deals = px.bar(
-    community_deals,
-    x='Community',
-    y='Deals',
-    title=f"Top 10 Communities for {selected_agent.title()}",
-    labels={'Community': 'Community', 'Deals': 'Number of Deals'},
-    hover_data={'Deals': ':.0f', 'Area/City': True}  # Add 'Area/City' to hover data
-)
-fig_community_deals.update_layout(
-    xaxis=dict(tickangle=-45),
-    margin=dict(b=120)
+    community_deals, x='community', y='Deals',
+    title=f"Top Communities for {selected_agent.title()}",
+    labels={'community': 'Community', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_community_deals, use_container_width=True)
 
-# Group by building type and calculate total deals
-building_type_deals = filtered_data.groupby('Building Type').size().reset_index(name='Deals')
-
-# Plot bar chart for building type
+# Deals by Building Type Bar Chart
+building_type_deals = filtered_data.groupby('building_type').size().reset_index(name='Deals')
 fig_building_type = px.bar(
-    building_type_deals,
-    x='Building Type',
-    y='Deals',
+    building_type_deals, x='building_type', y='Deals',
     title=f"Deals by Building Type for {selected_agent.title()}",
-    labels={'Building Type': 'Building Type', 'Deals': 'Number of Deals'},
-    hover_data={'Deals': ':.0f'}
-)
-fig_building_type.update_layout(
-    xaxis=dict(tickangle=-45),
-    margin=dict(b=120)
+    labels={'building_type': 'Building Type', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_building_type, use_container_width=True)
 
-# Calculate deals for listing and buyer sides
-listing_deals = filtered_data[filtered_data['Listing Agent 1 - Agent Name'] == selected_agent].shape[0]
-buyer_deals = filtered_data[filtered_data['Buyer Agent 1 - Agent Name'] == selected_agent].shape[0]
+# Listing vs Buyer Side Distribution Pie Chart
+listing_deals = filtered_data[filtered_data['listing_agent'] == selected_agent].shape[0]
+buyer_deals = filtered_data[filtered_data['buyer_agent'] == selected_agent].shape[0]
 
-# Create a DataFrame for the pie chart
-side_distribution = pd.DataFrame({
-    'Side': ['Listing', 'Buyer'],
-    'Deals': [listing_deals, buyer_deals]
-})
-
-# Plot pie chart
-fig_side_distribution = px.pie(
-    side_distribution,
-    names='Side',
-    values='Deals',
-    title=f"Listing vs Buyer Side Distribution for {selected_agent.title()}",
-    hover_data={'Deals': ':.0f'}
-)
+side_distribution = pd.DataFrame({'Side': ['Listing', 'Buyer'], 'Deals': [listing_deals, buyer_deals]})
+fig_side_distribution = px.pie(side_distribution, names='Side', values='Deals', title="Listing vs Buyer Side Distribution")
 st.plotly_chart(fig_side_distribution, use_container_width=True)
