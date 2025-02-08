@@ -10,60 +10,18 @@ from utils.config import get_aws_credentials
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
-# AWS Credentials and DynamoDB Connection
-st.info("Attempting to connect to AWS DynamoDB...")
-
-try:
-    # Get AWS credentials from config
-    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
-
-    # Detailed logging of connection parameters
-    st.write(f"Connecting to DynamoDB with:")
-    st.write(f"- Region: {aws_region}")
-    st.write(f"- Access Key: {aws_access_key[:4]}...{aws_access_key[-4:]}")
-
-    # Initialize AWS DynamoDB with secure credentials
-    dynamodb = boto3.resource(
-        'dynamodb',
-        region_name=aws_region,
-        aws_access_key_id=aws_access_key,
-        aws_secret_access_key=aws_secret_key
-    )
-
-    table = dynamodb.Table('real_estate_listings')
-
-    # Verify table exists and is accessible
+def get_aws_credentials():
+    """Retrieves AWS credentials from Streamlit secrets."""
     try:
-        response = table.scan(Limit=1)
-        st.success("Successfully connected to DynamoDB!")
-        st.write("Sample data from scan:", response.get('Items', []))
-    except Exception as table_error:
-        st.error("❌ Error accessing DynamoDB table ❌")
-        st.error(f"Detailed Error: {str(table_error)}")
-        st.error("""
-        Possible Causes:
-        1. Invalid AWS Credentials
-        2. Insufficient IAM Permissions
-        3. Incorrect Region
-        4. Network/Connectivity Issues
-        
-        Troubleshooting Steps:
-        - Verify AWS Access Key and Secret Key
-        - Check IAM user/role permissions
-        - Confirm DynamoDB table exists in the specified region
-        """)
-        st.stop()
-
-except Exception as e:
-    st.error("❌ AWS Connection Failed ❌")
-    st.error(f"Detailed Error: {str(e)}")
-    st.error("""
-    Troubleshooting Steps:
-    1. Verify AWS credentials in Streamlit Cloud Secrets
-    2. Ensure correct IAM permissions
-    3. Check network connectivity
-    """)
-    st.stop()
+        return (
+            st.secrets["AWS_ACCESS_KEY_ID"],
+            st.secrets["AWS_SECRET_ACCESS_KEY"],
+            st.secrets.get("AWS_REGION", "us-east-2")
+        )
+    except KeyError as e:
+        available_keys = list(st.secrets.keys())
+        st.error(f"Missing AWS credentials. Available keys: {available_keys}")
+        return None, None, None
 
 # Function to fetch all data from DynamoDB
 def get_dynamodb_data():
