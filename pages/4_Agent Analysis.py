@@ -2,22 +2,48 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import boto3
+import os
 from decimal import Decimal
 
 # Set page title and layout
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
-# Initialize AWS DynamoDB
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')
+# Load AWS credentials securely from Streamlit secrets
+aws_access_key = st.secrets["AWS_ACCESS_KEY_ID"]
+aws_secret_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
+aws_region = st.secrets.get("AWS_REGION", "us-east-2")
+
+# Initialize AWS DynamoDB with secure credentials
+dynamodb = boto3.resource(
+    'dynamodb',
+    region_name=aws_region,
+    aws_access_key_id=aws_access_key,
+    aws_secret_access_key=aws_secret_key
+)
+
 table = dynamodb.Table('real_estate_listings')
 
-# Function to fetch data from DynamoDB
+# Function to fetch all data from DynamoDB
 def get_dynamodb_data():
-    """ Fetch all data from DynamoDB table and convert to Pandas DataFrame. """
-    response = table.scan()  # Retrieve all records (consider pagination for large datasets)
-    data = response.get('Items', [])
-    return pd.DataFrame(data)
+    """ Fetch data from DynamoDB and convert to Pandas DataFrame. """
+    items = []
+    last_evaluated_key = None
+
+    # Handle pagination for large datasets
+    while True:
+        if last_evaluated_key:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key)
+        else:
+            response = table.scan()
+
+        items.extend(response.get('Items', []))
+        last_evaluated_key = response.get('LastEvaluatedKey')
+
+        if not last_evaluated_key:
+            break
+
+    return pd.DataFrame(items)
 
 # Load data from AWS DynamoDB
 listings_data = get_dynamodb_data()
@@ -40,7 +66,7 @@ st.sidebar.header("Filters")
 start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
 end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
 
-# Agent name filter (searchable dropdown)
+# Agent name filter
 all_agents = sorted(set(listings_data['listing_agent'].dropna().unique()) |
                     set(listings_data['buyer_agent'].dropna().unique()))
 selected_agent = st.sidebar.selectbox("Select Agent", all_agents)
@@ -55,37 +81,31 @@ selected_communities = st.sidebar.multiselect("Select Community", sorted(listing
 selected_building_types = st.sidebar.multiselect("Select Building Type", sorted(listings_data['building_type'].dropna().unique()))
 
 # Calculate rankings for all agents (based on total deals)
-all_agents_deals = (
-    listings_data.groupby('listing_agent').size() +
-    listings_data.groupby('buyer_agent').size()
-).sort_values(ascending=False).reset_index(name='Total Deals')
-
-# Rename the 'index' column to 'Agent Name'
-all_agents_deals.rename(columns={'index': 'Agent Name'}, inplace=True)
-
-# Add ranking column
+all_agents_deals = listings_data['listing_agent'].value_counts().add(
+    listings_data['buyer_agent'].value_counts(), fill_value=0
+).reset_index()
+all_agents_deals.columns = ['Agent Name', 'Total Deals']
+all_agents_deals = all_agents_deals.sort_values(by='Total Deals', ascending=False).reset_index(drop=True)
 all_agents_deals['Ranking'] = all_agents_deals.index + 1
 
 # Sidebar filter for ranking-based search
 st.sidebar.header("Ranking-Based Search")
-
-# Add a searchable dropdown for agents by ranking
 ranked_agents = all_agents_deals['Agent Name'].tolist()
 selected_agent_by_rank = st.sidebar.selectbox(
-    "Search Agent by Ranking",
-    ranked_agents,
+    "Search Agent by Ranking", ranked_agents,
     index=ranked_agents.index(selected_agent) if selected_agent in ranked_agents else 0
 )
 
-# Update the selected agent if the user chooses from the ranking-based dropdown
+# Update selected agent if changed via ranking dropdown
 selected_agent = selected_agent_by_rank
 
-# Display the ranking of the selected agent
-selected_agent_rank = all_agents_deals[all_agents_deals['Agent Name'] == selected_agent]['Ranking'].values[0]
-st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank}")
+# Display agent ranking
+selected_agent_rank = all_agents_deals.loc[all_agents_deals['Agent Name'] == selected_agent, 'Ranking'].values
+if len(selected_agent_rank) > 0:
+    st.sidebar.write(f"Ranking of {selected_agent}: {selected_agent_rank[0]}")
 
-# Filter data based on sidebar selections
-def filter_data(data, start_date, end_date, selected_agent, selected_cities=None, selected_communities=None, selected_building_types=None):
+# Function to filter data
+def filter_data(data, start_date, end_date, selected_agent, selected_cities, selected_communities, selected_building_types):
     start_dt = pd.to_datetime(start_date).normalize()
     end_dt = pd.to_datetime(end_date).normalize()
 
@@ -94,7 +114,7 @@ def filter_data(data, start_date, end_date, selected_agent, selected_cities=None
         (data['sold_date'].dt.normalize() <= end_dt)
     ]
 
-    # Filter by agent (both listing and buyer sides)
+    # Filter by agent (listing or buyer)
     filtered_data = filtered_data[
         (filtered_data['listing_agent'] == selected_agent) |
         (filtered_data['buyer_agent'] == selected_agent)
@@ -113,12 +133,12 @@ def filter_data(data, start_date, end_date, selected_agent, selected_cities=None
 # Apply filters
 filtered_data = filter_data(listings_data, start_date, end_date, selected_agent, selected_cities, selected_communities, selected_building_types)
 
-# Check if filtered data is empty
+# Check if data is empty after filtering
 if filtered_data.empty:
     st.warning("No data found for the selected filters!")
     st.stop()
 
-# Convert 'Sold Price' to numeric
+# Convert 'sold_price' to numeric
 filtered_data['sold_price'] = pd.to_numeric(filtered_data['sold_price'], errors='coerce')
 
 # Calculate KPIs
@@ -127,7 +147,7 @@ gross_sales = filtered_data['sold_price'].sum()
 average_price_per_deal = gross_sales / total_deals if total_deals > 0 else 0
 
 # Display KPIs
-st.subheader(f"Performance Overview for {selected_agent.title()}")
+st.subheader(f"Performance Overview for {selected_agent}")
 
 col1, col2, col3 = st.columns(3)
 col1.metric("Total Deals Closed", total_deals)
@@ -137,12 +157,8 @@ col3.metric("Average Price Per Deal", f"${average_price_per_deal:,.2f}")
 # Extract firms where the agent worked
 listing_firms = filtered_data[filtered_data['listing_agent'] == selected_agent]['listing_firm'].dropna().unique()
 buyer_firms = filtered_data[filtered_data['buyer_agent'] == selected_agent]['buyer_firm'].dropna().unique()
-
-# Combine firms
 all_firms = sorted(set(listing_firms) | set(buyer_firms))
-firm_info = f"Firms: {', '.join(all_firms)}" if all_firms else "No firms found."
-
-st.markdown(firm_info)
+st.markdown(f"Firms: {', '.join(all_firms)}" if all_firms else "No firms found.")
 
 # Monthly Deals Line Chart
 filtered_data['Month'] = filtered_data['sold_date'].dt.to_period('M').dt.to_timestamp()
@@ -150,7 +166,7 @@ monthly_deals = filtered_data.groupby('Month').size().reset_index(name='Deals')
 
 fig_monthly_deals = px.line(
     monthly_deals, x='Month', y='Deals',
-    title=f"Monthly Deals for {selected_agent.title()}",
+    title=f"Monthly Deals for {selected_agent}",
     labels={'Month': 'Month', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_monthly_deals, use_container_width=True)
@@ -159,7 +175,7 @@ st.plotly_chart(fig_monthly_deals, use_container_width=True)
 community_deals = filtered_data.groupby(['community', 'area_city']).size().reset_index(name='Deals')
 fig_community_deals = px.bar(
     community_deals, x='community', y='Deals',
-    title=f"Top Communities for {selected_agent.title()}",
+    title=f"Top Communities for {selected_agent}",
     labels={'community': 'Community', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_community_deals, use_container_width=True)
@@ -168,15 +184,7 @@ st.plotly_chart(fig_community_deals, use_container_width=True)
 building_type_deals = filtered_data.groupby('building_type').size().reset_index(name='Deals')
 fig_building_type = px.bar(
     building_type_deals, x='building_type', y='Deals',
-    title=f"Deals by Building Type for {selected_agent.title()}",
+    title=f"Deals by Building Type for {selected_agent}",
     labels={'building_type': 'Building Type', 'Deals': 'Number of Deals'}
 )
 st.plotly_chart(fig_building_type, use_container_width=True)
-
-# Listing vs Buyer Side Distribution Pie Chart
-listing_deals = filtered_data[filtered_data['listing_agent'] == selected_agent].shape[0]
-buyer_deals = filtered_data[filtered_data['buyer_agent'] == selected_agent].shape[0]
-
-side_distribution = pd.DataFrame({'Side': ['Listing', 'Buyer'], 'Deals': [listing_deals, buyer_deals]})
-fig_side_distribution = px.pie(side_distribution, names='Side', values='Deals', title="Listing vs Buyer Side Distribution")
-st.plotly_chart(fig_side_distribution, use_container_width=True)
