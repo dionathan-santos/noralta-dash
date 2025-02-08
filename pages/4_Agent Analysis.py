@@ -4,6 +4,10 @@ import plotly.express as px
 import boto3
 import os
 from decimal import Decimal
+import os
+from dotenv import load_dotenv
+
+load_dotenv()  # Load .env file
 
 # Set page title and layout
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
