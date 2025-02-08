@@ -4,29 +4,29 @@ import plotly.express as px
 import boto3
 import os
 from decimal import Decimal
-import os
-#from dotenv import load_dotenv
-
-#load_dotenv()  # Load .env file
+from utils.config import get_aws_credentials
 
 # Set page title and layout
 st.set_page_config(page_title="Agent Performance Dashboard", layout="wide")
 st.title("Agent Performance Dashboard")
 
-# Load AWS credentials securely from Streamlit secrets
-aws_access_key = st.secrets["AWS_ACCESS_KEY_ID"]
-aws_secret_key = st.secrets["AWS_SECRET_ACCESS_KEY"]
-aws_region = st.secrets.get("AWS_REGION", "us-east-2")
+try:
+    # Get AWS credentials from config
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
 
-# Initialize AWS DynamoDB with secure credentials
-dynamodb = boto3.resource(
-    'dynamodb',
-    region_name=aws_region,
-    aws_access_key_id=aws_access_key,
-    aws_secret_access_key=aws_secret_key
-)
+    # Initialize AWS DynamoDB with secure credentials
+    dynamodb = boto3.resource(
+        'dynamodb',
+        region_name=aws_region,
+        aws_access_key_id=aws_access_key,
+        aws_secret_access_key=aws_secret_key
+    )
 
-table = dynamodb.Table('real_estate_listings')
+    table = dynamodb.Table('real_estate_listings')
+
+except Exception as e:
+    st.error(f"Failed to initialize AWS connection: {str(e)}")
+    st.stop()
 
 # Function to fetch all data from DynamoDB
 def get_dynamodb_data():
@@ -50,7 +50,11 @@ def get_dynamodb_data():
     return pd.DataFrame(items)
 
 # Load data from AWS DynamoDB
-listings_data = get_dynamodb_data()
+try:
+    listings_data = get_dynamodb_data()
+except Exception as e:
+    st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+    st.stop()
 
 # Convert Sold Date to datetime format
 if not listings_data.empty:
