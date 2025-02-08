@@ -18,20 +18,18 @@ from boto3.dynamodb.conditions import Key
 # AWS Credentials and Data Retrieval Functions
 # =============================================================================
 
-def get_dynamodb_client():
-    """
-    Creates and returns a DynamoDB client using AWS credentials.
-    
-    Returns:
-        boto3.client: DynamoDB client object
-    """
+def get_dynamodb_data():
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
     try:
-        aws_secrets = st.secrets["aws"]
-        client = boto3.client(
-            'dynamodb',
-            aws_access_key_id=aws_secrets["AWS_ACCESS_KEY_ID"],
-            aws_secret_access_key=aws_secrets["AWS_SECRET_ACCESS_KEY"],
-            region_name=aws_secrets.get("AWS_REGION", "us-east-2")
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
         )
         return client
     except Exception as e:
