@@ -31,7 +31,7 @@ def get_dynamodb_data(table_name):
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
-
+        )
         # Get table
         table = dynamodb.Table(table_name)
 
@@ -39,7 +39,7 @@ def get_dynamodb_data(table_name):
         items = []
         last_evaluated_key = None
 
-        while True:
+        items, last_evaluated_key = [], None
             if last_evaluated_key:
                 response = table.scan(ExclusiveStartKey=last_evaluated_key)
             else:
