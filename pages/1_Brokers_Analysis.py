@@ -18,57 +18,77 @@ from boto3.dynamodb.conditions import Key
 # AWS Credentials and Data Retrieval Functions
 # =============================================================================
 
-def get_dynamodb_data():
-    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
-    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
-    if not aws_access_key or not aws_secret_key:
-        return pd.DataFrame()
-
-    try:
-        dynamodb = boto3.resource(
-            "dynamodb",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=aws_region
-        )
-        return client
-    except Exception as e:
-        st.error(f"Failed to create DynamoDB client: {str(e)}")
-        return None
-
-@st.cache_data
 def get_dynamodb_data(table_name):
     """
-    Retrieves data from DynamoDB table.
-    
+    Retrieves data from specified DynamoDB table.
+
     Args:
-        table_name (str): Name of DynamoDB table
-        
+        table_name (str): Name of the DynamoDB table to query
+
     Returns:
         pd.DataFrame: Data from table as DataFrame
     """
-    client = get_dynamodb_client()
-    if not client:
-        return pd.DataFrame()
-        
     try:
-        paginator = client.get_paginator('scan')
+        # Create DynamoDB resource
+        aws_secrets = st.secrets["aws"]
+        dynamodb = boto3.resource(
+            'dynamodb',
+            aws_access_key_id=aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secret_access_key=aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            region_name=aws_secrets.get("AWS_REGION", "us-east-2")
+        )
+
+        # Get table
+        table = dynamodb.Table(table_name)
+
+        # Scan table with pagination
         items = []
-        for page in paginator.paginate(TableName=table_name):
-            items.extend(page['Items'])
-            
-        df = pd.DataFrame([{k: v.get('S', v.get('N', '')) for k,v in item.items()} for item in items])
-        
-        # Convert date columns
-        if 'Sold Date' in df.columns:
+        last_evaluated_key = None
+
+        while True:
+            if last_evaluated_key:
+                response = table.scan(ExclusiveStartKey=last_evaluated_key)
+            else:
+                response = table.scan()
+
+            items.extend(response.get('Items', []))
+
+            last_evaluated_key = response.get('LastEvaluatedKey')
+            if not last_evaluated_key:
+                break
+
+        # Convert to DataFrame
+        df = pd.DataFrame(items)
+
+        # Handle date columns based on table
+        if table_name == 'real_estate_listings' and 'Sold Date' in df.columns:
             df['Sold Date'] = pd.to_datetime(df['Sold Date'])
-        if 'Date' in df.columns:
+        elif table_name == 'brokerage' and 'Date' in df.columns:
             df['Date'] = pd.to_datetime(df['Date'])
-            
+
         return df
+
     except Exception as e:
         st.error(f"Failed to fetch data from {table_name}: {str(e)}")
         return pd.DataFrame()
+
+# Usage:
+def load_all_data():
+    """
+    Loads data from both tables.
+
+    Returns:
+        tuple: (listings_df, brokerage_df)
+    """
+    listings_df = get_dynamodb_data('real_estate_listings')
+    brokerage_df = get_dynamodb_data('brokerage')
+
+    if listings_df.empty:
+        st.error("Failed to load listings data")
+    if brokerage_df.empty:
+        st.error("Failed to load brokerage data")
+
+    return listings_df, brokerage_df
 
 def load_and_normalize_data():
     """
