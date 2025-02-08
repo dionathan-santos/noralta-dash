@@ -19,7 +19,6 @@ from boto3.dynamodb.conditions import Key
 # =============================================================================
 
 def get_dynamodb_data(table_name):
-
     """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
@@ -39,7 +38,7 @@ def get_dynamodb_data(table_name):
         items = []
         last_evaluated_key = None
 
-        items, last_evaluated_key = [], None
+        while True:  # Add the while loop here
             if last_evaluated_key:
                 response = table.scan(ExclusiveStartKey=last_evaluated_key)
             else:
@@ -50,6 +49,21 @@ def get_dynamodb_data(table_name):
             last_evaluated_key = response.get('LastEvaluatedKey')
             if not last_evaluated_key:
                 break
+
+        # Convert to DataFrame
+        df = pd.DataFrame(items)
+
+        # Handle date columns based on table
+        if table_name == 'real_estate_listings' and 'Sold Date' in df.columns:
+            df['Sold Date'] = pd.to_datetime(df['Sold Date'])
+        elif table_name == 'brokerage' and 'Date' in df.columns:
+            df['Date'] = pd.to_datetime(df['Date'])
+
+        return df
+
+    except Exception as e:
+        st.error(f"Failed to fetch data from {table_name}: {str(e)}")
+        return pd.DataFrame()
 
         # Convert to DataFrame
         df = pd.DataFrame(items)
