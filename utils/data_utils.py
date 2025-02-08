@@ -19,3 +19,15 @@ def filter_data(data, start_date, end_date, area_city):
         filtered_data = filtered_data[filtered_data['Area/City'] == area_city]
     return filtered_data
 
+def get_aws_credentials():
+    try:
+        return (
+            st.secrets["aws"]["AWS_ACCESS_KEY_ID"],
+            st.secrets["aws"]["AWS_SECRET_ACCESS_KEY"],
+            st.secrets["aws"].get("AWS_REGION", "us-east-2")
+        )
+    except KeyError as e:
+        available_keys = list(st.secrets.get("aws", {}).keys())
+        raise Exception(
+            f"Missing AWS credentials. Found keys under 'aws': {available_keys}"
+        )
