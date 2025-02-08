@@ -17,6 +17,11 @@ try:
     # Get AWS credentials from config
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
 
+    # Detailed logging of connection parameters
+    st.write(f"Connecting to DynamoDB with:")
+    st.write(f"- Region: {aws_region}")
+    st.write(f"- Access Key: {aws_access_key[:4]}...{aws_access_key[-4:]}")
+
     # Initialize AWS DynamoDB with secure credentials
     dynamodb = boto3.resource(
         'dynamodb',
@@ -31,9 +36,22 @@ try:
     try:
         response = table.scan(Limit=1)
         st.success("Successfully connected to DynamoDB!")
+        st.write("Sample data from scan:", response.get('Items', []))
     except Exception as table_error:
-        st.error(f"Error accessing DynamoDB table: {table_error}")
-        st.error("Please check your AWS credentials and table permissions.")
+        st.error("❌ Error accessing DynamoDB table ❌")
+        st.error(f"Detailed Error: {str(table_error)}")
+        st.error("""
+        Possible Causes:
+        1. Invalid AWS Credentials
+        2. Insufficient IAM Permissions
+        3. Incorrect Region
+        4. Network/Connectivity Issues
+        
+        Troubleshooting Steps:
+        - Verify AWS Access Key and Secret Key
+        - Check IAM user/role permissions
+        - Confirm DynamoDB table exists in the specified region
+        """)
         st.stop()
 
 except Exception as e:
