@@ -480,8 +480,10 @@ else:
     st.plotly_chart(fig_line)
 
 
+
+
 # ---------------------------------------------
-# Visualization: Monthly Market Share by Firm (%)
+# Visualization: Monthly Market Share by Firm (%) - Whole Market
 # ---------------------------------------------
 st.header("Monthly Market Share by Firm (%) - Top 10 + Noralta")
 
@@ -489,42 +491,43 @@ st.header("Monthly Market Share by Firm (%) - Top 10 + Noralta")
 market_data = filtered_data.copy()
 market_data['Month'] = market_data['sold_date'].dt.to_period('M').dt.to_timestamp()
 
-# Calculate monthly deals per firm from the listing side
+# Calculate monthly deals per firm for the listing side
 monthly_deals_listing = (
     market_data.groupby(['listing_firm', 'Month']).size().reset_index(name='Deals')
 )
-# Calculate monthly deals per firm from the buyer side
+# Calculate monthly deals per firm for the buyer side
 monthly_deals_buyer = (
     market_data.groupby(['buyer_firm', 'Month']).size().reset_index(name='Deals')
 )
 
-# Rename the firm columns to a common name
+# Standardize the firm column names for merging
 monthly_deals_listing = monthly_deals_listing.rename(columns={'listing_firm': 'Firm'})
 monthly_deals_buyer = monthly_deals_buyer.rename(columns={'buyer_firm': 'Firm'})
 
-# Combine the two dataframes and sum the deals per firm per month
-monthly_deals = pd.concat([monthly_deals_listing, monthly_deals_buyer], axis=0)
-monthly_deals = monthly_deals.groupby(['Firm', 'Month'])['Deals'].sum().reset_index()
+# Combine the two dataframes (all deals, across the whole market)
+all_monthly_deals = pd.concat([monthly_deals_listing, monthly_deals_buyer], axis=0)
+all_monthly_deals = all_monthly_deals.groupby(['Firm', 'Month'])['Deals'].sum().reset_index()
 
-# Calculate total monthly deals from both sides (using the market_data copy)
+# Calculate total deals for each month across the whole market
 total_monthly_deals = market_data.groupby('Month').size().reset_index(name='Total Deals')
 
-# Merge monthly deals with total monthly deals to compute market share
-market_share = pd.merge(monthly_deals, total_monthly_deals, on='Month')
+# Merge firm-level deals with total monthly deals so that each firm's market share is relative to the entire market
+market_share = pd.merge(all_monthly_deals, total_monthly_deals, on='Month')
 market_share['Market Share (%)'] = (market_share['Deals'] / market_share['Total Deals']) * 100
 
-# Determine the top 10 firms by overall market share (summing over all months)
-top_firms = market_share.groupby('Firm')['Market Share (%)'].sum().nlargest(10).index.tolist()
+# Determine the top 10 firms by overall market share (summing market share across months)
+overall_market_share = market_share.groupby('Firm')['Market Share (%)'].sum().reset_index()
+top_firms = overall_market_share.sort_values('Market Share (%)', ascending=False).head(10)['Firm'].tolist()
 
-# Ensure "Royal LePage Noralta Real Estate" is included in the top firms
+# Ensure the highlighted firm is included
 highlight_firm = "Royal LePage Noralta Real Estate"
 if highlight_firm not in top_firms:
     top_firms.append(highlight_firm)
 
-# Filter the market share data to only include the top firms
+# Filter the market share data to only include the top firms (from the whole market)
 market_share_top = market_share[market_share['Firm'].isin(top_firms)].drop_duplicates(subset=['Firm', 'Month'])
 
-# Create the line chart using Plotly Express
+# Create a line chart showing monthly market share for the selected firms
 fig_market_share = px.line(
     market_share_top,
     x='Month',
