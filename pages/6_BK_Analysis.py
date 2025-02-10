@@ -106,42 +106,52 @@ col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
 
 
-###################   TOP 10 LINSTING FIRMS ####################
+# Define the brokerage to highlight
+highlight_brokerage = "Royal LePage Noralta Real Estate"
 
-# Plot Bar Chart for Top 10 Brokerages
-st.subheader("Linsting Side - Top 10 Brokerages with Most Deals")
-if not brokerage_deals.empty:
+########################### Function to create a bar chart with highlighted brokerage
+def create_highlighted_bar_chart(df, x_col, y_col, title):
+    """Creates a bar chart where 'Royal LePage Noralta Real Estate' is highlighted in red."""
+    df["Color"] = df[x_col].apply(lambda x: "red" if x == highlight_brokerage else "blue")
+
     fig = px.bar(
+        df,
+        x=x_col,
+        y=y_col,
+        title=title,
+        labels={x_col: "Brokerage", y_col: "Number of Deals"},
+        text_auto=True,
+        color=df["Color"],  # Assign colors dynamically
+        color_discrete_map={"red": "red", "blue": "royalblue"}  # Define color mapping
+    )
+
+    return fig
+
+
+###################   TOP 10 LISTING FIRMS ####################
+
+st.subheader("Listing Side - Top 10 Brokerages with Most Deals")
+if not brokerage_deals.empty:
+    fig = create_highlighted_bar_chart(
         brokerage_deals.head(10),
-        x="Brokerage",
-        y="Number of Deals",
-        title="Top 10 Brokerages by Deals",
-        labels={"Number of Deals": "Number of Properties Sold"},
-        text_auto=True
+        x_col="Brokerage",
+        y_col="Number of Deals",
+        title="Top 10 Brokerages by Deals (Listing Side)"
     )
     st.plotly_chart(fig)
 else:
     st.warning("No data available for the selected filters.")
 
 
-
 ###################   TOP 10 BUYER FIRMS ####################
 
-
-# Top 10 Buyer Brokerages with Most Deals
-buyer_brokerage_deals = filtered_data["buyer_firm"].value_counts().reset_index()
-buyer_brokerage_deals.columns = ["Buyer Brokerage", "Number of Deals"]
-
-# Display Chart for Buyer Brokerages
 st.subheader("Top 10 Buyer Brokerages with Most Deals")
 if not buyer_brokerage_deals.empty:
-    fig_buyer = px.bar(
+    fig_buyer = create_highlighted_bar_chart(
         buyer_brokerage_deals.head(10),
-        x="Buyer Brokerage",
-        y="Number of Deals",
-        title="Top 10 Buyer Brokerages by Deals",
-        labels={"Number of Deals": "Number of Properties Purchased"},
-        text_auto=True
+        x_col="Buyer Brokerage",
+        y_col="Number of Deals",
+        title="Top 10 Buyer Brokerages by Deals"
     )
     st.plotly_chart(fig_buyer)
 else:
@@ -150,39 +160,14 @@ else:
 
 ###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
-# Count the number of deals for listing and buyer sides separately
-listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals")
-buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals")
-
-# Merge both counts into a single DataFrame, filling missing values with 0
-combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
-    listing_deals, left_on="Brokerage", right_index=True, how="outer"
-).merge(
-    pd.DataFrame({"Brokerage": buyer_deals.index}).merge(
-        buyer_deals, left_on="Brokerage", right_index=True, how="outer"
-    ),
-    on="Brokerage",
-    how="outer"
-).fillna(0)
-
-# Calculate total deals (listing + buyer)
-combined_deals["Total Deals"] = combined_deals["Listing Deals"] + combined_deals["Buyer Deals"]
-
-# Sort by total deals in descending order
-combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).head(10)
-
-# Display Chart for Combined Brokerages
 st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
 if not combined_deals.empty:
-    fig_combined = px.bar(
+    fig_combined = create_highlighted_bar_chart(
         combined_deals,
-        x="Brokerage",
-        y="Total Deals",
-        title="Top 10 Brokerages by Total Deals (Buyer & Listing)",
-        labels={"Total Deals": "Number of Transactions"},
-        text_auto=True
+        x_col="Brokerage",
+        y_col="Total Deals",
+        title="Top 10 Brokerages by Total Deals (Buyer & Listing)"
     )
     st.plotly_chart(fig_combined)
 else:
     st.warning("No data available for the selected filters.")
-
