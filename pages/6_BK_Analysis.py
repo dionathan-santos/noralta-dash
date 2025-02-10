@@ -109,13 +109,20 @@ col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
 
 
 
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+
 # Define the brokerage to highlight
 highlight_brokerage = "Royal LePage Noralta Real Estate"
 
 # Function to create a bar chart with highlighted brokerage
 def create_highlighted_bar_chart(df, x_col, y_col, title):
     """Creates a bar chart where 'Royal LePage Noralta Real Estate' is highlighted in red."""
-    df["Color"] = df[x_col].apply(lambda x: "red" if x == highlight_brokerage else "blue")
+    df = df.copy()  # Avoid modifying original DataFrame
+
+    # Assign colors: "red" for the highlight, "blue" for others
+    df["Color"] = df[x_col].apply(lambda x: "red" if x == highlight_brokerage else "royalblue")
 
     fig = px.bar(
         df,
@@ -125,7 +132,7 @@ def create_highlighted_bar_chart(df, x_col, y_col, title):
         labels={x_col: "Brokerage", y_col: "Number of Deals"},
         text_auto=True,
         color=df["Color"],  # Assign colors dynamically
-        color_discrete_map={"red": "red", "blue": "royalblue"}  # Define color mapping
+        color_discrete_map={"red": "red", "royalblue": "royalblue"}  # Define color mapping
     )
 
     return fig
@@ -133,10 +140,18 @@ def create_highlighted_bar_chart(df, x_col, y_col, title):
 
 ###################   TOP 10 LISTING FIRMS ####################
 
+# Ensure 'listing_firm' column exists before using it
+if "listing_firm" in filtered_data.columns:
+    brokerage_deals = filtered_data["listing_firm"].value_counts().reset_index()
+    brokerage_deals.columns = ["Brokerage", "Number of Deals"]
+    brokerage_deals = brokerage_deals.sort_values(by="Number of Deals", ascending=False).head(10)  # Correct sorting
+else:
+    brokerage_deals = pd.DataFrame(columns=["Brokerage", "Number of Deals"])
+
 st.subheader("Listing Side - Top 10 Brokerages with Most Deals")
 if not brokerage_deals.empty:
     fig = create_highlighted_bar_chart(
-        brokerage_deals.head(10),
+        brokerage_deals,
         x_col="Brokerage",
         y_col="Number of Deals",
         title="Top 10 Brokerages by Deals (Listing Side)"
@@ -148,19 +163,19 @@ else:
 
 ###################   TOP 10 BUYER FIRMS ####################
 
-# Ensure 'buyer_firm' column exists
+# Ensure 'buyer_firm' column exists before using it
 if "buyer_firm" in filtered_data.columns:
     buyer_brokerage_deals = filtered_data["buyer_firm"].value_counts().reset_index()
-    buyer_brokerage_deals.columns = ["Buyer Brokerage", "Number of Deals"]
+    buyer_brokerage_deals.columns = ["Brokerage", "Number of Deals"]
+    buyer_brokerage_deals = buyer_brokerage_deals.sort_values(by="Number of Deals", ascending=False).head(10)  # Correct sorting
 else:
-    buyer_brokerage_deals = pd.DataFrame(columns=["Buyer Brokerage", "Number of Deals"])
-
+    buyer_brokerage_deals = pd.DataFrame(columns=["Brokerage", "Number of Deals"])
 
 st.subheader("Top 10 Buyer Brokerages with Most Deals")
 if not buyer_brokerage_deals.empty:
     fig_buyer = create_highlighted_bar_chart(
-        buyer_brokerage_deals.head(10),
-        x_col="Buyer Brokerage",
+        buyer_brokerage_deals,
+        x_col="Brokerage",
         y_col="Number of Deals",
         title="Top 10 Buyer Brokerages by Deals"
     )
@@ -172,8 +187,8 @@ else:
 ###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
 # Ensure 'listing_firm' and 'buyer_firm' columns exist before using them
-listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals") if "listing_firm" in filtered_data.columns else pd.Series()
-buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals") if "buyer_firm" in filtered_data.columns else pd.Series()
+listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals") if "listing_firm" in filtered_data.columns else pd.Series(dtype="int")
+buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals") if "buyer_firm" in filtered_data.columns else pd.Series(dtype="int")
 
 # Merge listing and buyer firm counts into a single DataFrame
 combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
@@ -194,17 +209,12 @@ combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).h
 
 st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
 if not combined_deals.empty:
-    fig_combined = px.bar(
+    fig_combined = create_highlighted_bar_chart(
         combined_deals,
-        x="Brokerage",
-        y="Total Deals",
-        title="Top 10 Brokerages by Total Deals (Buyer & Listing)",
-        labels={"Total Deals": "Number of Transactions"},
-        text_auto=True,
-        color=combined_deals["Brokerage"].apply(lambda x: "red" if x == highlight_brokerage else "royalblue"),
-        color_discrete_map={"red": "red", "royalblue": "royalblue"}  # Correct color mapping
+        x_col="Brokerage",
+        y_col="Total Deals",
+        title="Top 10 Brokerages by Total Deals (Buyer & Listing)"
     )
     st.plotly_chart(fig_combined)
 else:
     st.warning("No data available for the selected filters.")
-
