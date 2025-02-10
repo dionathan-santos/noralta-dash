@@ -345,3 +345,133 @@ else:
     )
 
     st.plotly_chart(fig_line)
+
+
+
+
+
+
+
+
+
+
+
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import boto3
+from datetime import datetime
+
+# -------------------------------------------
+# Assuming your app already has:
+# - filtered_data from your "real_estate_listings" table filtered by the sidebar date range.
+# - The sidebar date inputs: start_date, end_date, etc.
+# - The get_aws_credentials() function from your existing code.
+# -------------------------------------------
+
+# Function to fetch brokerage data from DynamoDB
+@st.cache_data
+def get_brokerage_data():
+    """Fetch data from the 'brokerage' table in DynamoDB."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("brokerage")
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+        return pd.DataFrame(items)
+    except Exception as e:
+        st.error(f"Failed to fetch brokerage data: {str(e)}")
+        return pd.DataFrame()
+
+# Fetch brokerage data and process it
+brokerage_data = get_brokerage_data()
+
+if brokerage_data.empty:
+    st.error("No brokerage data available!")
+else:
+    # Convert the 'Date' column to datetime and filter by the same date range
+    brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce").dt.normalize()
+    brokerage_data = brokerage_data[
+        (brokerage_data["Date"] >= pd.to_datetime(start_date)) &
+        (brokerage_data["Date"] <= pd.to_datetime(end_date))
+    ]
+    
+    # Compute the average number of agents per firm (assuming "Value" holds the agent count)
+    agents_avg = brokerage_data.groupby("firm")["Value"].mean().reset_index()
+    agents_avg.columns = ["Brokerage", "Avg_Agents"]
+
+    # ------------------------------------------------------------
+    # Process listings data to get monthly deals per firm.
+    # Both listing and buyer deals are included.
+    # ------------------------------------------------------------
+    
+    # Prepare listing deals
+    listing_deals_df = filtered_data[["sold_date", "listing_firm"]].copy()
+    listing_deals_df = listing_deals_df.rename(columns={"listing_firm": "Brokerage"})
+    listing_deals_df["deal_count"] = 1
+
+    # Prepare buyer deals
+    buyer_deals_df = filtered_data[["sold_date", "buyer_firm"]].copy()
+    buyer_deals_df = buyer_deals_df.rename(columns={"buyer_firm": "Brokerage"})
+    buyer_deals_df["deal_count"] = 1
+
+    # Combine listing and buyer deals
+    all_deals = pd.concat([listing_deals_df, buyer_deals_df])
+    
+    # Create a new column for the month (we use YYYY-MM format)
+    all_deals["month"] = pd.to_datetime(all_deals["sold_date"]).dt.to_period("M").dt.to_timestamp()
+
+    # Aggregate deals per firm for each month (non-cumulative)
+    monthly_deals = (
+        all_deals.groupby(["Brokerage", "month"])["deal_count"]
+        .sum()
+        .reset_index()
+    )
+    
+    # ------------------------------------------------------------
+    # Identify the top 10 firms based on total deals over the period.
+    # ------------------------------------------------------------
+    total_deals = all_deals.groupby("Brokerage")["deal_count"].sum().reset_index()
+    total_deals = total_deals.sort_values("deal_count", ascending=False).head(10)
+    top10_firms = total_deals["Brokerage"].tolist()
+    
+    # Filter monthly_deals to only include the top 10 firms
+    monthly_deals_top10 = monthly_deals[monthly_deals["Brokerage"].isin(top10_firms)]
+
+    # Merge with the average agents data so we can calculate deals per agent
+    monthly_deals_top10 = monthly_deals_top10.merge(agents_avg, on="Brokerage", how="left")
+
+    # Calculate deals per agent for the month (monthly deals divided by average agents)
+    monthly_deals_top10["deals_per_agent"] = monthly_deals_top10["deal_count"] / monthly_deals_top10["Avg_Agents"]
+
+    # ------------------------------------------------------------
+    # Create a line chart showing the monthly deals per agent for the top 10 firms.
+    # ------------------------------------------------------------
+    fig_line = px.line(
+        monthly_deals_top10,
+        x="month",
+        y="deals_per_agent",
+        color="Brokerage",
+        title="Monthly Deals per Agent (Top 10 Firms)",
+        labels={
+            "month": "Month",
+            "deals_per_agent": "Deals per Agent",
+            "Brokerage": "Firm"
+        }
+    )
+    
+    st.plotly_chart(fig_line)
