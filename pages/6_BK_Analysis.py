@@ -141,7 +141,40 @@ def create_highlighted_bar_chart(df, x_col, y_col, title):
 
     return fig
 
+###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
+# Ensure 'listing_firm' and 'buyer_firm' columns exist before using them
+listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals") if "listing_firm" in filtered_data.columns else pd.Series(dtype="int")
+buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals") if "buyer_firm" in filtered_data.columns else pd.Series(dtype="int")
+
+# Merge listing and buyer firm counts into a single DataFrame
+combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
+    listing_deals, left_on="Brokerage", right_index=True, how="outer"
+).merge(
+    pd.DataFrame({"Brokerage": buyer_deals.index}).merge(
+        buyer_deals, left_on="Brokerage", right_index=True, how="outer"
+    ),
+    on="Brokerage",
+    how="outer"
+).fillna(0)
+
+# Calculate total deals (listing + buyer)
+combined_deals["Total Deals"] = combined_deals["Listing Deals"] + combined_deals["Buyer Deals"]
+
+# Sort by total deals in descending order
+combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).head(10)
+
+st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
+if not combined_deals.empty:
+    fig_combined = create_highlighted_bar_chart(
+        combined_deals,
+        x_col="Brokerage",
+        y_col="Total Deals",
+        title="(Buyer & Listing) Top 10 Brokerages by Total Deals "
+    )
+    st.plotly_chart(fig_combined)
+else:
+    st.warning("No data available for the selected filters.")
 
 ###################   TOP 10 LISTING FIRMS ####################
 
@@ -176,7 +209,7 @@ if "buyer_firm" in filtered_data.columns:
 else:
     buyer_brokerage_deals = pd.DataFrame(columns=["Brokerage", "Number of Deals"])
 
-st.subheader("Top 10 Buyer Brokerages with Most Deals")
+st.subheader("Buyers Side - Top 10 Brokerages with Most Deals")
 if not buyer_brokerage_deals.empty:
     fig_buyer = create_highlighted_bar_chart(
         buyer_brokerage_deals,
@@ -189,37 +222,94 @@ else:
     st.warning("No data available for the selected filters.")
 
 
-###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
-# Ensure 'listing_firm' and 'buyer_firm' columns exist before using them
-listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals") if "listing_firm" in filtered_data.columns else pd.Series(dtype="int")
-buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals") if "buyer_firm" in filtered_data.columns else pd.Series(dtype="int")
+import plotly.express as px
+import streamlit as st
+import pandas as pd
 
-# Merge listing and buyer firm counts into a single DataFrame
-combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
-    listing_deals, left_on="Brokerage", right_index=True, how="outer"
-).merge(
-    pd.DataFrame({"Brokerage": buyer_deals.index}).merge(
-        buyer_deals, left_on="Brokerage", right_index=True, how="outer"
-    ),
-    on="Brokerage",
-    how="outer"
-).fillna(0)
+# ---------------------------------------------
+# Visualization: Deals Per Agent by Brokers (Top 10 + Noralta)
+# ---------------------------------------------
+st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
-# Calculate total deals (listing + buyer)
-combined_deals["Total Deals"] = combined_deals["Listing Deals"] + combined_deals["Buyer Deals"]
+# Ensure sold_date is in datetime format
+filtered_listings["sold_date"] = pd.to_datetime(filtered_listings["sold_date"], errors="coerce")
 
-# Sort by total deals in descending order
-combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).head(10)
+# Filter listings within the date range
+filtered_listings = filtered_listings[
+    (filtered_listings['sold_date'] >= pd.Timestamp(start_date)) &
+    (filtered_listings['sold_date'] <= pd.Timestamp(end_date))
+].copy()
 
-st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
-if not combined_deals.empty:
-    fig_combined = create_highlighted_bar_chart(
-        combined_deals,
-        x_col="Brokerage",
-        y_col="Total Deals",
-        title="Top 10 Brokerages by Total Deals (Buyer & Listing)"
-    )
-    st.plotly_chart(fig_combined)
-else:
-    st.warning("No data available for the selected filters.")
+# Extract the month for each transaction
+filtered_listings['Month'] = filtered_listings['sold_date'].dt.to_period('M').dt.to_timestamp()
+
+# Count total deals (Listing + Buyer) per month per broker
+monthly_combined_deals = pd.DataFrame()
+months = filtered_listings['Month'].unique()
+for month in months:
+    month_data = filtered_listings[filtered_listings['Month'] == month]
+    month_deals = (
+        month_data['listing_firm'].value_counts() +
+        month_data['buyer_firm'].value_counts()
+    ).reset_index()
+    month_deals.columns = ['Brokerage', 'Deals']
+    month_deals['Month'] = month
+    monthly_combined_deals = pd.concat([monthly_combined_deals, month_deals], ignore_index=True)
+
+# Ensure brokerage data has date-based agent counts
+brokerage_data_melted = brokerage_data.melt(id_vars=['Broker'], var_name='Date', value_name='Average Agents')
+brokerage_data_melted['Date'] = pd.to_datetime(brokerage_data_melted['Date'], errors='coerce')
+brokerage_data_melted = brokerage_data_melted.dropna()
+
+# Convert Date to month-based timestamps
+brokerage_data_melted['Month'] = brokerage_data_melted['Date'].dt.to_period('M').dt.to_timestamp()
+
+# Merge Deals with Agent Counts by Brokerage & Month
+merged_monthly = pd.merge(
+    monthly_combined_deals,
+    brokerage_data_melted,
+    left_on=['Brokerage', 'Month'],
+    right_on=['Broker', 'Month'],
+    how='inner'
+)
+
+# Calculate "Deals Per Agent"
+merged_monthly['Deals Per Agent'] = merged_monthly['Deals'] / merged_monthly['Average Agents']
+merged_monthly = merged_monthly.drop(columns=['Broker'])  # Remove duplicate broker column
+
+# Ensure complete data grid (all brokers for all months)
+all_months = pd.date_range(start=start_date, end=end_date, freq='MS')
+all_brokers = merged_monthly['Brokerage'].unique()
+complete_index = pd.MultiIndex.from_product([all_brokers, all_months], names=['Brokerage', 'Month'])
+merged_monthly = merged_monthly.set_index(['Brokerage', 'Month']).reindex(complete_index).reset_index()
+
+# Fill missing values with 0
+merged_monthly['Deals'] = merged_monthly['Deals'].fillna(0)
+merged_monthly['Average Agents'] = merged_monthly['Average Agents'].fillna(0)
+merged_monthly['Deals Per Agent'] = (merged_monthly['Deals'] / merged_monthly['Average Agents']).fillna(0)
+
+# Select Top 10 Brokerages by Total Deals
+top_brokers = merged_monthly.groupby('Brokerage')['Deals'].sum().nlargest(10).index
+filtered_monthly_top = merged_monthly[merged_monthly['Brokerage'].isin(top_brokers)]
+
+# Ensure Royal LePage Noralta Real Estate is included
+royal_data = merged_monthly[merged_monthly['Brokerage'] == "Royal LePage Noralta Real Estate"]
+if not royal_data.empty and "Royal LePage Noralta Real Estate" not in top_brokers:
+    filtered_monthly_top = pd.concat([filtered_monthly_top, royal_data])
+
+# Create Line Chart
+fig_line = px.line(
+    filtered_monthly_top,
+    x='Month',
+    y='Deals Per Agent',
+    color='Brokerage',
+    title="Monthly Deals Per Agent by Broker",
+    labels={'Deals Per Agent': 'Deals Per Agent', 'Month': 'Month', 'Brokerage': 'Brokerage'}
+)
+
+fig_line.update_traces(mode="lines+markers",
+                       hovertemplate=("<b>Brokerage: %{color}</b><br>"
+                                      "Month: %{x}<br>"
+                                      "Deals Per Agent: %{y:.2f}<extra></extra>"))
+st.plotly_chart(fig_line, use_container_width=True)
