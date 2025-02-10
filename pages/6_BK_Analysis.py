@@ -106,7 +106,7 @@ col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
 
 # Plot Bar Chart for Top 10 Brokerages
-st.subheader("Top 10 Brokerages with Most Deals")
+st.subheader("Linsting Side - Top 10 Brokerages with Most Deals")
 if not brokerage_deals.empty:
     fig = px.bar(
         brokerage_deals.head(10),
@@ -123,3 +123,26 @@ else:
 # Display filtered data table
 st.subheader("Filtered Listings Data")
 st.dataframe(filtered_data)
+
+
+###################   TOP 10 BUYER FIRMS ####################
+
+
+# Top 10 Buyer Brokerages with Most Deals
+buyer_brokerage_deals = filtered_data["buyer_firm"].value_counts().reset_index()
+buyer_brokerage_deals.columns = ["Buyer Brokerage", "Number of Deals"]
+
+# Display Chart for Buyer Brokerages
+st.subheader("Top 10 Buyer Brokerages with Most Deals")
+if not buyer_brokerage_deals.empty:
+    fig_buyer = px.bar(
+        buyer_brokerage_deals.head(10),
+        x="Buyer Brokerage",
+        y="Number of Deals",
+        title="Top 10 Buyer Brokerages by Deals",
+        labels={"Number of Deals": "Number of Properties Purchased"},
+        text_auto=True
+    )
+    st.plotly_chart(fig_buyer)
+else:
+    st.warning("No data available for the selected filters.")
