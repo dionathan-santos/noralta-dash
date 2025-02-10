@@ -176,6 +176,39 @@ if not combined_deals.empty:
 else:
     st.warning("No data available for the selected filters.")
 
+# Create line chart showing deals over time
+st.subheader("Deals Over Time by Brokerage")
+
+# Prepare data for line chart
+time_series_data = filtered_data.groupby(['sold_date', 'listing_firm']).size().reset_index(name='Number of Deals')
+
+# Get top 10 brokerages by total deals
+top_10_brokerages = combined_deals['Brokerage'].tolist()
+
+# Filter time series data for top 10 brokerages
+time_series_filtered = time_series_data[time_series_data['listing_firm'].isin(top_10_brokerages)]
+
+# Create line chart
+fig_line = px.line(
+    time_series_filtered,
+    x='sold_date',
+    y='Number of Deals',
+    color='listing_firm',
+    title='Daily Deals by Top 10 Brokerages Over Time',
+    labels={'sold_date': 'Date', 'Number of Deals': 'Number of Deals', 'listing_firm': 'Brokerage'}
+)
+
+# Customize layout
+fig_line.update_layout(
+    xaxis_title="Date",
+    yaxis_title="Number of Deals",
+    legend_title="Brokerage",
+    hovermode='x unified'
+)
+
+# Display the chart
+st.plotly_chart(fig_line)
+
 ###################   TOP 10 LISTING FIRMS ####################
 
 # Ensure 'listing_firm' column exists before using it
