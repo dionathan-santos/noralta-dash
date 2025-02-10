@@ -1,74 +1,115 @@
 import streamlit as st
-import boto3
 import pandas as pd
 import plotly.express as px
+import boto3
 from datetime import datetime
 
-# Initialize DynamoDB resource
-dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Adjust region if needed
+# Set page title and layout
+st.set_page_config(page_title="Brokerage Performance Analysis", layout="wide")
+st.title("Brokerage Performance Analysis")
 
-# Define the table name
-TABLE_NAME = "real_estate_listings"
+# Function to retrieve AWS credentials from Streamlit secrets
+def get_aws_credentials():
+    """Retrieves AWS credentials from Streamlit secrets."""
+    try:
+        aws_secrets = st.secrets["aws"]  # Get the entire 'aws' dictionary
+        return (
+            aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            aws_secrets.get("AWS_REGION", "us-east-2")  # Default to us-east-2 if not set
+        )
+    except KeyError:
+        st.error("AWS credentials are missing. Check Streamlit secrets configuration.")
+        return None, None, None
 
 # Function to fetch data from DynamoDB
-def fetch_data():
-    """Retrieve listings from DynamoDB and convert to DataFrame."""
-    table = dynamodb.Table(TABLE_NAME)
-    response = table.scan()  # Retrieve all data (consider pagination for large datasets)
-    items = response.get('Items', [])
+@st.cache_data
+def get_dynamodb_data():
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
 
-    if not items:
-        return pd.DataFrame()  # Return empty DataFrame if no data
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("real_estate_listings")
 
-    # Convert to DataFrame
-    df = pd.DataFrame(items)
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
 
-    # Convert date columns to datetime format
-    df["sold_date"] = pd.to_datetime(df["sold_date"], errors='coerce')
-    
-    return df
+        return pd.DataFrame(items)
 
-# Load data
-df = fetch_data()
+    except Exception as e:
+        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        return pd.DataFrame()
 
-# Streamlit UI
-st.title("Real Estate Listings Analysis")
+# Load data from AWS DynamoDB
+listings_data = get_dynamodb_data()
 
-# Date filters
+# Ensure data is loaded
+if listings_data.empty:
+    st.error("No data available to display!")
+    st.stop()
+
+# Convert 'sold_date' to datetime format
+listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce").dt.normalize()
+
+# Sidebar filters
 st.sidebar.header("Filters")
-start_date = st.sidebar.date_input("Start Date", datetime(2023, 1, 1))
-end_date = st.sidebar.date_input("End Date", datetime(2024, 1, 1))
 
-# Dropdown filters (unique values from dataset)
-selected_cities = st.sidebar.multiselect("Select Cities", df["area_city"].dropna().unique())
-selected_communities = st.sidebar.multiselect("Select Communities", df["community"].dropna().unique())
-selected_building_types = st.sidebar.multiselect("Select Building Types", df["building_type"].dropna().unique())
-selected_firms = st.sidebar.multiselect("Select Office Firms", df["listing_firm"].dropna().unique())
+start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
+end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
 
-# Apply filters
-filtered_df = df[
-    (df["sold_date"] >= pd.to_datetime(start_date)) &
-    (df["sold_date"] <= pd.to_datetime(end_date))
-]
+selected_cities = st.sidebar.multiselect("Select Cities", sorted(listings_data["area_city"].dropna().unique()))
+selected_communities = st.sidebar.multiselect("Select Communities", sorted(listings_data["community"].dropna().unique()))
+selected_building_types = st.sidebar.multiselect("Select Building Types", sorted(listings_data["building_type"].dropna().unique()))
+selected_firms = st.sidebar.multiselect("Select Brokerage Firms", sorted(listings_data["listing_firm"].dropna().unique()))
+
+# **Optimized Filtering with Pandas Query**
+query_str = f"(sold_date >= '{start_date}') & (sold_date <= '{end_date}')"
 
 if selected_cities:
-    filtered_df = filtered_df[filtered_df["area_city"].isin(selected_cities)]
+    query_str += f" & (area_city in {selected_cities})"
 if selected_communities:
-    filtered_df = filtered_df[filtered_df["community"].isin(selected_communities)]
+    query_str += f" & (community in {selected_communities})"
 if selected_building_types:
-    filtered_df = filtered_df[filtered_df["building_type"].isin(selected_building_types)]
+    query_str += f" & (building_type in {selected_building_types})"
 if selected_firms:
-    filtered_df = filtered_df[filtered_df["listing_firm"].isin(selected_firms)]
+    query_str += f" & (listing_firm in {selected_firms})"
 
-# Group by brokerage and count the number of deals
-brokerage_counts = filtered_df["listing_firm"].value_counts().reset_index()
-brokerage_counts.columns = ["Brokerage", "Number of Deals"]
+filtered_data = listings_data.query(query_str) if query_str else listings_data
 
-# Display top 10 brokerages
+# Check if data is empty after filtering
+if filtered_data.empty:
+    st.warning("No data found for the selected filters!")
+    st.stop()
+
+# Top 10 Brokerages with Most Deals
+brokerage_deals = filtered_data["listing_firm"].value_counts().reset_index()
+brokerage_deals.columns = ["Brokerage", "Number of Deals"]
+
+# Display KPIs
+st.subheader("Brokerage Performance Summary")
+
+col1, col2 = st.columns(2)
+col1.metric("Total Deals in Period", filtered_data.shape[0])
+col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
+
+# Plot Bar Chart for Top 10 Brokerages
 st.subheader("Top 10 Brokerages with Most Deals")
-if not brokerage_counts.empty:
+if not brokerage_deals.empty:
     fig = px.bar(
-        brokerage_counts.head(10),
+        brokerage_deals.head(10),
         x="Brokerage",
         y="Number of Deals",
         title="Top 10 Brokerages by Deals",
@@ -79,6 +120,6 @@ if not brokerage_counts.empty:
 else:
     st.warning("No data available for the selected filters.")
 
-# Display filtered data (optional)
+# Display filtered data table
 st.subheader("Filtered Listings Data")
-st.dataframe(filtered_df)
+st.dataframe(filtered_data)
