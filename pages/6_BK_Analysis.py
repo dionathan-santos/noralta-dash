@@ -227,7 +227,8 @@ else:
 
 
 
-
+st.write("Monthly Deals for Noralta:", monthly_deals[monthly_deals["Brokerage"] == "Royal LePage Noralta Real Estate"])
+st.write("Market Share for Noralta:", market_share[market_share["Firm"] == "Royal LePage Noralta Real Estate"])
 
 
 
@@ -335,14 +336,6 @@ else:
     # ------------------------------------------------------------
     # Create a line chart showing the deals per agent over time for the top 10 firms.
     # ------------------------------------------------------------
-    
-   
-
-    # Optionally increase the line width and marker size for all traces.
-    fig_line.update_traces(line=dict(width=3), marker=dict(size=8))
-    st.plotly_chart(fig_line)
-    
-    
     fig_line = px.line(
         daily_deals_top10,
         x="sold_date",
@@ -565,4 +558,3 @@ fig_market_share.update_layout(
     margin=dict(b=120)
 )
 st.plotly_chart(fig_market_share, use_container_width=True)
-
