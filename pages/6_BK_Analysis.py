@@ -226,60 +226,25 @@ else:
 
 ###################  LINE CHART - DEALS PER AGENT 
 
-@st.cache_data
-def get_brokerage_data():
-    """Fetch brokerage agent count data from DynamoDB and convert to a Pandas DataFrame."""
-    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
-    if not aws_access_key or not aws_secret_key:
-        return pd.DataFrame()
+###################  LOAD BROKERAGE AGENT DATA ####################
 
-    try:
-        dynamodb = boto3.resource(
-            "dynamodb",
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=aws_region
-        )
-        table = dynamodb.Table("brokerage")
+# Fetch brokerage agent count data from the existing DynamoDB connection
+brokerage_agents = listings_data.copy()  # Reuse the existing dataset
 
-        items, last_evaluated_key = [], None
-        while True:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-            if not last_evaluated_key:
-                break
-
-        df = pd.DataFrame(items)
-
-        # Ensure proper column names
-        if not {"firm", "Date", "Broker", "Value"}.issubset(df.columns):
-            st.error("Missing expected columns in brokerage data.")
-            return pd.DataFrame()
-
-        # Rename columns to be more intuitive
-        df = df.rename(columns={"firm": "Brokerage", "Date": "Month", "Value": "Agent Count"})
-
-        # Convert 'Month' to datetime (YYYY-MM)
-        df["Month"] = pd.to_datetime(df["Month"], format="%b-%d-%Y", errors="coerce").dt.to_period("M")
-
-        return df
-
-    except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
-        return pd.DataFrame()
-
-# Load agent count data
-brokerage_agents = get_brokerage_data()
-
-# Ensure 'brokerage_agents' has valid data
-if brokerage_agents.empty:
-    st.error("No agent count data available!")
+# Ensure necessary columns exist
+if not {"firm", "Date", "Value"}.issubset(brokerage_agents.columns):
+    st.error("Brokerage agent count data is missing required columns!")
     st.stop()
+
+# Rename columns to match expected format
+brokerage_agents = brokerage_agents.rename(columns={"firm": "Brokerage", "Date": "Month", "Value": "Agent Count"})
+
+# Convert 'Month' to datetime (YYYY-MM)
+brokerage_agents["Month"] = pd.to_datetime(brokerage_agents["Month"], errors="coerce").dt.to_period("M")
 
 ###################  PREPARE DAILY DEALS PER BROKERAGE ####################
 
-# Assuming 'filtered_data' is pre-loaded from another source
+# Ensure 'sold_date' and 'listing_firm' exist in filtered data
 if "sold_date" not in filtered_data.columns or "listing_firm" not in filtered_data.columns:
     st.error("Missing required columns in sales data!")
     st.stop()
@@ -332,4 +297,5 @@ fig_line = px.line(
 )
 
 st.plotly_chart(fig_line)
+
 
