@@ -24,8 +24,8 @@ def get_aws_credentials():
 
 # Function to fetch data from DynamoDB
 @st.cache_data
-def get_dynamodb_data(table_name):
-    """Fetch data from a specified DynamoDB table and convert it to a Pandas DataFrame."""
+def get_dynamodb_data():
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
         return pd.DataFrame()
@@ -37,7 +37,7 @@ def get_dynamodb_data(table_name):
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        table = dynamodb.Table(table_name)  # Dynamically select the table
+        table = dynamodb.Table("real_estate_listings")
 
         items, last_evaluated_key = [], None
         while True:
@@ -50,12 +50,11 @@ def get_dynamodb_data(table_name):
         return pd.DataFrame(items)
 
     except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {e}")
+        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
         return pd.DataFrame()
 
 # Load data from AWS DynamoDB
-listings_data = get_dynamodb_data("real_estate_listings")  # Pass the table name explicitly
-
+listings_data = get_dynamodb_data()
 
 # Ensure data is loaded
 if listings_data.empty:
@@ -223,71 +222,94 @@ else:
     st.warning("No data available for the selected filters.")
 
 
-########################  DEALS PER AGENT
 
 import plotly.express as px
-import pandas as pd
 import streamlit as st
+import pandas as pd
 
-###################   DAILY DEALS PER AGENT LINE CHART ####################
+# ---------------------------------------------
+# Visualization: Deals Per Agent by Brokers (Top 10 + Noralta)
+# ---------------------------------------------
+st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
-# Ensure 'sold_date' column exists in filtered_data
-if "sold_date" in filtered_data.columns:
-    # Step 1: Count deals per brokerage per day
-    daily_deals = filtered_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
-else:
-    daily_deals = pd.DataFrame(columns=["sold_date", "listing_firm", "Total Deals"])
+# Ensure sold_date is in datetime format
+filtered_listings["sold_date"] = pd.to_datetime(filtered_listings["sold_date"], errors="coerce")
 
+# Filter listings within the date range
+filtered_listings = filtered_listings[
+    (filtered_listings['sold_date'] >= pd.Timestamp(start_date)) &
+    (filtered_listings['sold_date'] <= pd.Timestamp(end_date))
+].copy()
 
-### FIX: Fetch brokerage data dynamically BEFORE processing ###
-brokerage_data = get_dynamodb_data("brokerage")  # Now it correctly loads the brokerage table
+# Extract the month for each transaction
+filtered_listings['Month'] = filtered_listings['sold_date'].dt.to_period('M').dt.to_timestamp()
 
-if brokerage_data.empty:
-    st.warning("No brokerage data available. Unable to compute Deals per Agent.")
+# Count total deals (Listing + Buyer) per month per broker
+monthly_combined_deals = pd.DataFrame()
+months = filtered_listings['Month'].unique()
+for month in months:
+    month_data = filtered_listings[filtered_listings['Month'] == month]
+    month_deals = (
+        month_data['listing_firm'].value_counts() +
+        month_data['buyer_firm'].value_counts()
+    ).reset_index()
+    month_deals.columns = ['Brokerage', 'Deals']
+    month_deals['Month'] = month
+    monthly_combined_deals = pd.concat([monthly_combined_deals, month_deals], ignore_index=True)
 
-# Step 2: Extract monthly agent count from brokerage table
-if not brokerage_data.empty and "Broker" in brokerage_data.columns:
-    # Convert brokerage columns to numeric (ignoring non-date columns)
-    brokerage_melted = brokerage_data.melt(id_vars=["Broker"], var_name="Month", value_name="Total Agents")
+# Ensure brokerage data has date-based agent counts
+brokerage_data_melted = brokerage_data.melt(id_vars=['Broker'], var_name='Date', value_name='Average Agents')
+brokerage_data_melted['Date'] = pd.to_datetime(brokerage_data_melted['Date'], errors='coerce')
+brokerage_data_melted = brokerage_data_melted.dropna()
 
-    # Convert Month to datetime format (only considering Year-Month)
-    brokerage_melted["Month"] = pd.to_datetime(brokerage_melted["Month"], errors="coerce").dt.to_period("M")
+# Convert Date to month-based timestamps
+brokerage_data_melted['Month'] = brokerage_data_melted['Date'].dt.to_period('M').dt.to_timestamp()
 
-    # Rename Broker column to match listing_firm
-    brokerage_melted.rename(columns={"Broker": "listing_firm"}, inplace=True)
-else:
-    brokerage_melted = pd.DataFrame(columns=["listing_firm", "Month", "Total Agents"])
+# Merge Deals with Agent Counts by Brokerage & Month
+merged_monthly = pd.merge(
+    monthly_combined_deals,
+    brokerage_data_melted,
+    left_on=['Brokerage', 'Month'],
+    right_on=['Broker', 'Month'],
+    how='inner'
+)
 
-# Step 3: Merge daily deal data with agent count (using the closest available month)
-if not daily_deals.empty and not brokerage_melted.empty:
-    daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")  # Convert sold_date to Year-Month
+# Calculate "Deals Per Agent"
+merged_monthly['Deals Per Agent'] = merged_monthly['Deals'] / merged_monthly['Average Agents']
+merged_monthly = merged_monthly.drop(columns=['Broker'])  # Remove duplicate broker column
 
-    # Merge deals per brokerage per month with the agent count
-    deals_per_agent = daily_deals.merge(
-        brokerage_melted, on=["listing_firm", "Month"], how="left"
-    ).fillna(0)
+# Ensure complete data grid (all brokers for all months)
+all_months = pd.date_range(start=start_date, end=end_date, freq='MS')
+all_brokers = merged_monthly['Brokerage'].unique()
+complete_index = pd.MultiIndex.from_product([all_brokers, all_months], names=['Brokerage', 'Month'])
+merged_monthly = merged_monthly.set_index(['Brokerage', 'Month']).reindex(complete_index).reset_index()
 
-    # Step 4: Calculate deals per agent
-    deals_per_agent["Deals per Agent"] = deals_per_agent["Total Deals"] / deals_per_agent["Total Agents"].replace(0, 1)
-else:
-    deals_per_agent = pd.DataFrame(columns=["sold_date", "listing_firm", "Deals per Agent"])
+# Fill missing values with 0
+merged_monthly['Deals'] = merged_monthly['Deals'].fillna(0)
+merged_monthly['Average Agents'] = merged_monthly['Average Agents'].fillna(0)
+merged_monthly['Deals Per Agent'] = (merged_monthly['Deals'] / merged_monthly['Average Agents']).fillna(0)
 
-# Step 5: Plot the line chart for top 10 brokerages (by total deals)
-top_10_brokerages = combined_deals["Brokerage"].tolist()  # Get the top 10 firms
+# Select Top 10 Brokerages by Total Deals
+top_brokers = merged_monthly.groupby('Brokerage')['Deals'].sum().nlargest(10).index
+filtered_monthly_top = merged_monthly[merged_monthly['Brokerage'].isin(top_brokers)]
 
-filtered_chart_data = deals_per_agent[deals_per_agent["listing_firm"].isin(top_10_brokerages)]
+# Ensure Royal LePage Noralta Real Estate is included
+royal_data = merged_monthly[merged_monthly['Brokerage'] == "Royal LePage Noralta Real Estate"]
+if not royal_data.empty and "Royal LePage Noralta Real Estate" not in top_brokers:
+    filtered_monthly_top = pd.concat([filtered_monthly_top, royal_data])
 
-st.subheader("Daily Deals per Agent for Top 10 Brokerages")
-if not filtered_chart_data.empty:
-    fig_line = px.line(
-        filtered_chart_data,
-        x="sold_date",
-        y="Deals per Agent",
-        color="listing_firm",
-        title="Daily Deals per Agent - Top 10 Brokerages",
-        labels={"sold_date": "Date", "Deals per Agent": "Deals Per Agent"},
-        markers=True
-    )
-    st.plotly_chart(fig_line)
-else:
-    st.warning("No data available for the selected filters.")  
+# Create Line Chart
+fig_line = px.line(
+    filtered_monthly_top,
+    x='Month',
+    y='Deals Per Agent',
+    color='Brokerage',
+    title="Monthly Deals Per Agent by Broker",
+    labels={'Deals Per Agent': 'Deals Per Agent', 'Month': 'Month', 'Brokerage': 'Brokerage'}
+)
+
+fig_line.update_traces(mode="lines+markers",
+                       hovertemplate=("<b>Brokerage: %{color}</b><br>"
+                                      "Month: %{x}<br>"
+                                      "Deals Per Agent: %{y:.2f}<extra></extra>"))
+st.plotly_chart(fig_line, use_container_width=True)
