@@ -105,11 +105,14 @@ col1, col2 = st.columns(2)
 col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
 
+########################## highlighted brokerage
+
+
 
 # Define the brokerage to highlight
 highlight_brokerage = "Royal LePage Noralta Real Estate"
 
-########################### Function to create a bar chart with highlighted brokerage
+# Function to create a bar chart with highlighted brokerage
 def create_highlighted_bar_chart(df, x_col, y_col, title):
     """Creates a bar chart where 'Royal LePage Noralta Real Estate' is highlighted in red."""
     df["Color"] = df[x_col].apply(lambda x: "red" if x == highlight_brokerage else "blue")
@@ -144,6 +147,14 @@ else:
 
 
 ###################   TOP 10 BUYER FIRMS ####################
+
+# Ensure 'buyer_firm' column exists
+if "buyer_firm" in filtered_data.columns:
+    buyer_brokerage_deals = filtered_data["buyer_firm"].value_counts().reset_index()
+    buyer_brokerage_deals.columns = ["Buyer Brokerage", "Number of Deals"]
+else:
+    buyer_brokerage_deals = pd.DataFrame(columns=["Buyer Brokerage", "Number of Deals"])
+
 
 st.subheader("Top 10 Buyer Brokerages with Most Deals")
 if not buyer_brokerage_deals.empty:
