@@ -451,8 +451,13 @@ else:
     total_deals = all_deals.groupby("Brokerage")["deal_count"].sum().reset_index()
     total_deals = total_deals.sort_values("deal_count", ascending=False).head(10)
     top10_firms = total_deals["Brokerage"].tolist()
+
+    # Always include "Royal LePage Noralta Real Estate"
+    highlight_firm = "Royal LePage Noralta Real Estate"
+    if highlight_firm not in top10_firms:
+        top10_firms.append(highlight_firm)
     
-    # Filter monthly_deals to only include the top 10 firms
+    # Filter monthly_deals to only include the top 10 firms (plus the highlight if needed)
     monthly_deals_top10 = monthly_deals[monthly_deals["Brokerage"].isin(top10_firms)]
 
     # Merge with the average agents data so we can calculate deals per agent
@@ -462,14 +467,14 @@ else:
     monthly_deals_top10["deals_per_agent"] = monthly_deals_top10["deal_count"] / monthly_deals_top10["Avg_Agents"]
 
     # ------------------------------------------------------------
-    # Create a line chart showing the monthly deals per agent for the top 10 firms.
+    # Create a line chart showing the monthly deals per agent for the selected firms.
     # ------------------------------------------------------------
     fig_line = px.line(
         monthly_deals_top10,
         x="month",
         y="deals_per_agent",
         color="Brokerage",
-        title="Monthly Deals per Agent (Top 10 Firms)",
+        title="Monthly Deals per Agent (Top 10 Firms + Noralta)",
         labels={
             "month": "Month",
             "deals_per_agent": "Deals per Agent",
@@ -478,6 +483,14 @@ else:
     )
     
     st.plotly_chart(fig_line)
+
+
+
+
+
+
+
+
 
 
 
