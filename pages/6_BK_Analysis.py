@@ -171,14 +171,40 @@ else:
 
 ###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
+# Ensure 'listing_firm' and 'buyer_firm' columns exist before using them
+listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals") if "listing_firm" in filtered_data.columns else pd.Series()
+buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals") if "buyer_firm" in filtered_data.columns else pd.Series()
+
+# Merge listing and buyer firm counts into a single DataFrame
+combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
+    listing_deals, left_on="Brokerage", right_index=True, how="outer"
+).merge(
+    pd.DataFrame({"Brokerage": buyer_deals.index}).merge(
+        buyer_deals, left_on="Brokerage", right_index=True, how="outer"
+    ),
+    on="Brokerage",
+    how="outer"
+).fillna(0)
+
+# Calculate total deals (listing + buyer)
+combined_deals["Total Deals"] = combined_deals["Listing Deals"] + combined_deals["Buyer Deals"]
+
+# Sort by total deals in descending order
+combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).head(10)
+
 st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
 if not combined_deals.empty:
-    fig_combined = create_highlighted_bar_chart(
+    fig_combined = px.bar(
         combined_deals,
-        x_col="Brokerage",
-        y_col="Total Deals",
-        title="Top 10 Brokerages by Total Deals (Buyer & Listing)"
+        x="Brokerage",
+        y="Total Deals",
+        title="Top 10 Brokerages by Total Deals (Buyer & Listing)",
+        labels={"Total Deals": "Number of Transactions"},
+        text_auto=True,
+        color=combined_deals["Brokerage"].apply(lambda x: "red" if x == highlight_brokerage else "royalblue"),
+        color_discrete_map={"red": "red", "royalblue": "royalblue"}  # Correct color mapping
     )
     st.plotly_chart(fig_combined)
 else:
     st.warning("No data available for the selected filters.")
+
