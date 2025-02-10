@@ -24,8 +24,8 @@ def get_aws_credentials():
 
 # Function to fetch data from DynamoDB
 @st.cache_data
-def get_dynamodb_data():
-    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+def get_dynamodb_data(table_name):
+    """Fetch data from a specified DynamoDB table and convert it to a Pandas DataFrame."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
         return pd.DataFrame()
@@ -37,7 +37,7 @@ def get_dynamodb_data():
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        table = dynamodb.Table("real_estate_listings")
+        table = dynamodb.Table(table_name)  # Dynamically select the table
 
         items, last_evaluated_key = [], None
         while True:
@@ -50,7 +50,7 @@ def get_dynamodb_data():
         return pd.DataFrame(items)
 
     except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        st.error(f"Failed to fetch data from DynamoDB: {e}")
         return pd.DataFrame()
 
 # Load data from AWS DynamoDB
@@ -230,8 +230,6 @@ import streamlit as st
 
 ###################   DAILY DEALS PER AGENT LINE CHART ####################
 
-###################   DAILY DEALS PER AGENT LINE CHART ####################
-
 # Ensure 'sold_date' column exists in filtered_data
 if "sold_date" in filtered_data.columns:
     # Step 1: Count deals per brokerage per day
@@ -240,13 +238,11 @@ else:
     daily_deals = pd.DataFrame(columns=["sold_date", "listing_firm", "Total Deals"])
 
 
-### FIX: Ensure brokerage_data is defined before using it ###
-try:
-    brokerage_data = get_dynamodb_data("brokerage")  # Load the brokerage table from DynamoDB
-except Exception as e:
-    st.error(f"Failed to load brokerage data: {e}")
-    brokerage_data = pd.DataFrame()  # Ensure brokerage_data is always defined
+### FIX: Fetch brokerage data dynamically BEFORE processing ###
+brokerage_data = get_dynamodb_data("brokerage")  # Now it correctly loads the brokerage table
 
+if brokerage_data.empty:
+    st.warning("No brokerage data available. Unable to compute Deals per Agent.")
 
 # Step 2: Extract monthly agent count from brokerage table
 if not brokerage_data.empty and "Broker" in brokerage_data.columns:
@@ -261,7 +257,6 @@ if not brokerage_data.empty and "Broker" in brokerage_data.columns:
 else:
     brokerage_melted = pd.DataFrame(columns=["listing_firm", "Month", "Total Agents"])
 
-
 # Step 3: Merge daily deal data with agent count (using the closest available month)
 if not daily_deals.empty and not brokerage_melted.empty:
     daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")  # Convert sold_date to Year-Month
@@ -275,7 +270,6 @@ if not daily_deals.empty and not brokerage_melted.empty:
     deals_per_agent["Deals per Agent"] = deals_per_agent["Total Deals"] / deals_per_agent["Total Agents"].replace(0, 1)
 else:
     deals_per_agent = pd.DataFrame(columns=["sold_date", "listing_firm", "Deals per Agent"])
-
 
 # Step 5: Plot the line chart for top 10 brokerages (by total deals)
 top_10_brokerages = combined_deals["Brokerage"].tolist()  # Get the top 10 firms
@@ -295,4 +289,4 @@ if not filtered_chart_data.empty:
     )
     st.plotly_chart(fig_line)
 else:
-    st.warning("No data available for the selected filters.")
+    st.warning("No data available for the selected filters.")  
