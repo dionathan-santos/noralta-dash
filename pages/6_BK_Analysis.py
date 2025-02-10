@@ -222,7 +222,9 @@ else:
     st.warning("No data available for the selected filters.")
 
 
-###################  LOAD BROKERAGE AGENT DATA FROM DYNAMODB 
+
+
+###################  LINE CHART - DEALS PER AGENT 
 
 @st.cache_data
 def get_brokerage_data():
@@ -248,7 +250,20 @@ def get_brokerage_data():
             if not last_evaluated_key:
                 break
 
-        return pd.DataFrame(items)
+        df = pd.DataFrame(items)
+
+        # Ensure proper column names
+        if not {"firm", "Date", "Broker", "Value"}.issubset(df.columns):
+            st.error("Missing expected columns in brokerage data.")
+            return pd.DataFrame()
+
+        # Rename columns to be more intuitive
+        df = df.rename(columns={"firm": "Brokerage", "Date": "Month", "Value": "Agent Count"})
+
+        # Convert 'Month' to datetime (YYYY-MM)
+        df["Month"] = pd.to_datetime(df["Month"], format="%b-%d-%Y", errors="coerce").dt.to_period("M")
+
+        return df
 
     except Exception as e:
         st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
@@ -262,13 +277,12 @@ if brokerage_agents.empty:
     st.error("No agent count data available!")
     st.stop()
 
-# Melt brokerage data (as agent counts are stored by month columns)
-brokerage_agents = brokerage_agents.melt(id_vars=["Broker"], var_name="Month", value_name="Agent Count")
-
-# Convert 'Month' to datetime format (YYYY-MM)
-brokerage_agents["Month"] = pd.to_datetime(brokerage_agents["Month"], errors="coerce").dt.to_period("M")
-
 ###################  PREPARE DAILY DEALS PER BROKERAGE ####################
+
+# Assuming 'filtered_data' is pre-loaded from another source
+if "sold_date" not in filtered_data.columns or "listing_firm" not in filtered_data.columns:
+    st.error("Missing required columns in sales data!")
+    st.stop()
 
 # Group deals by day and brokerage
 daily_deals = filtered_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
@@ -283,7 +297,7 @@ daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")
 daily_deals = daily_deals.merge(
     brokerage_agents,
     left_on=["listing_firm", "Month"],
-    right_on=["Broker", "Month"],
+    right_on=["Brokerage", "Month"],
     how="left"
 )
 
@@ -297,7 +311,12 @@ daily_deals["Deals Per Agent"] = daily_deals["Total Deals"] / daily_deals["Agent
 
 st.subheader("Daily Deals Per Agent for Top 10 Brokerages")
 
-# Filter for only the top 10 brokerages
+# Ensure 'combined_deals' exists and contains the top brokerages
+if "Brokerage" not in combined_deals.columns:
+    st.error("Missing 'Brokerage' column in combined_deals!")
+    st.stop()
+
+# Get top 10 brokerages by total transactions
 top_brokerages = combined_deals["Brokerage"].tolist()
 daily_deals_top10 = daily_deals[daily_deals["listing_firm"].isin(top_brokerages)]
 
@@ -313,3 +332,4 @@ fig_line = px.line(
 )
 
 st.plotly_chart(fig_line)
+

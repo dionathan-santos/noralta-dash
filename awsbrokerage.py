@@ -3,8 +3,8 @@ import boto3
 from decimal import Decimal
 import numpy as np
 
-# Load the pivoted data (modify this path if needed)
-file_path = "Corrected_Pivoted_Broker_Data.csv"
+# Load the updated CSV file (Modify this path if needed)
+file_path = "Complete_Reformatted_Broker_Data_JAN25.csv"
 
 def convert_floats_to_decimal(obj):
     """Convert float values to Decimal for DynamoDB compatibility, replacing NaN and Infinity with None."""
@@ -21,19 +21,26 @@ def convert_floats_to_decimal(obj):
 
 def prepare_dynamodb_data(file_path):
     """Prepare data for DynamoDB, ensuring no NaN or Infinity values."""
-    # Read pivoted CSV file
+    # Read updated CSV file
     df = pd.read_csv(file_path)
 
-    # ✅ Ensure 'id' column is treated as a string (matching DynamoDB partition key)
-    df['id'] = df['id'].astype(str)
+    # ✅ Ensure 'Broker' column is treated as a string (matching DynamoDB partition key)
+    if 'Broker' in df.columns:
+        df['Broker'] = df['Broker'].astype(str)
+    else:
+        raise ValueError("The required 'Broker' column is missing from the dataset!")
+
+    # ✅ Ensure 'fim' column exists and is a string
+    if 'firm' in df.columns:
+        df['firm'] = df['firm'].astype(str)  # Convert 'fim' to string to prevent type conflicts
 
     # ✅ Replace NaN and Infinity values in the entire DataFrame
     df.replace([np.inf, -np.inf, np.nan], None, inplace=True)
 
-    # ✅ Drop any rows where 'id' is missing (ensuring valid primary keys)
-    df = df.dropna(subset=['id'])
+    # ✅ Drop any rows where 'Broker' is missing (ensuring valid primary keys)
+    df = df.dropna(subset=['Broker'])
 
-    print(f"\nOriginal number of records: {len(df)}")  # Should remain 275
+    print(f"\nOriginal number of records: {len(df)}")  # Should reflect total valid records
     print("\nSample records:")
     print(df.head())
 

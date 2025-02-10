@@ -1,25 +1,57 @@
-import pandas as pd
+import boto3
+import json
+from decimal import Decimal
 
-def restructure_data():
-    # Read the original CSV file
-    df = pd.read_csv('Complete_Reformatted_Broker_Data_JAN25.csv')
+# Set AWS region
+aws_region = "us-east-2"
 
-    # Convert the date format to a consistent format (YYYY-MM-DD)
-    df['Date'] = pd.to_datetime(df['Date'], format='%b-%d-%Y').dt.strftime('%Y-%m-%d')
+# Initialize DynamoDB resource
+dynamodb = boto3.resource("dynamodb", region_name=aws_region)
 
-    # Pivot the data so that each broker has one row, and dates are columns
-    df_pivot = df.pivot_table(index='Broker', columns='Date', values='Value', aggfunc='sum', fill_value=0)
+# Reference the 'brokerage' table
+table = dynamodb.Table("brokerage")
 
-    # Reset the index to make 'Broker' a column again
-    df_pivot.reset_index(inplace=True)
+# Function to scan and retrieve all items from the table
+def fetch_brokerage_data():
+    """Fetch all records from the 'brokerage' table and convert Decimals to float/int."""
+    try:
+        items = []
+        last_evaluated_key = None
 
-    # Save the restructured data to a new CSV file
-    output_filename = 'Restructured_Broker_Data.csv'
-    df_pivot.to_csv(output_filename, index=False)
+        while True:
+            if last_evaluated_key:
+                response = table.scan(ExclusiveStartKey=last_evaluated_key)
+            else:
+                response = table.scan()
 
-    print(f"Restructured data saved to {output_filename}")
-    print("\nPreview of the restructured data:")
-    print(df_pivot.head())
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
 
-if __name__ == "__main__":
-    restructure_data()
+            if not last_evaluated_key:
+                break
+
+        return items
+
+    except Exception as e:
+        print(f"Error fetching data: {e}")
+        return None
+
+# Helper function to convert Decimal to int/float
+def convert_decimals(obj):
+    """Recursively converts Decimal objects to int or float."""
+    if isinstance(obj, list):
+        return [convert_decimals(i) for i in obj]
+    elif isinstance(obj, dict):
+        return {k: convert_decimals(v) for k, v in obj.items()}
+    elif isinstance(obj, Decimal):
+        return int(obj) if obj % 1 == 0 else float(obj)
+    return obj
+
+# Fetch and print the data
+brokerage_data = fetch_brokerage_data()
+
+if brokerage_data:
+    converted_data = convert_decimals(brokerage_data)  # Convert Decimal values
+    print(json.dumps(converted_data, indent=4))  # Pretty-print the results
+else:
+    print("No data found or an error occurred.")
