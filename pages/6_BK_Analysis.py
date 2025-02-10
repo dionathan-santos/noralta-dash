@@ -24,8 +24,8 @@ def get_aws_credentials():
 
 # Function to fetch data from DynamoDB
 @st.cache_data
-def get_dynamodb_data():
-    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+def get_dynamodb_data(table_name: str = "real_estate_listings"):
+    """Fetch data from a specified DynamoDB table and convert it to a Pandas DataFrame."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
         return pd.DataFrame()
@@ -37,7 +37,7 @@ def get_dynamodb_data():
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        table = dynamodb.Table("real_estate_listings")
+        table = dynamodb.Table(table_name)
 
         items, last_evaluated_key = [], None
         while True:
@@ -50,11 +50,11 @@ def get_dynamodb_data():
         return pd.DataFrame(items)
 
     except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        st.error(f"Failed to fetch data from {table_name}: {str(e)}")
         return pd.DataFrame()
 
 # Load data from AWS DynamoDB
-listings_data = get_dynamodb_data()
+listings_data = get_dynamodb_data("real_estate_listings")
 
 # Ensure data is loaded
 if listings_data.empty:
@@ -75,7 +75,7 @@ selected_communities = st.sidebar.multiselect("Select Communities", sorted(listi
 selected_building_types = st.sidebar.multiselect("Select Building Types", sorted(listings_data["building_type"].dropna().unique()))
 selected_firms = st.sidebar.multiselect("Select Brokerage Firms", sorted(listings_data["listing_firm"].dropna().unique()))
 
-# **Optimized Filtering with Pandas Query**
+# Optimized Filtering with Pandas Query
 query_str = f"(sold_date >= '{start_date}') & (sold_date <= '{end_date}')"
 
 if selected_cities:
@@ -104,10 +104,6 @@ st.subheader("Brokerage Performance Summary")
 col1, col2 = st.columns(2)
 col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
-
-########################## highlighted brokerage
-
-
 
 import streamlit as st
 import pandas as pd
@@ -221,10 +217,7 @@ if not buyer_brokerage_deals.empty:
 else:
     st.warning("No data available for the selected filters.")
 
-
-
-
-###################  LINE CHART - DEALS PER AGENT (COMBINED) ####################
+###################  LINE CHART - DEALS PER AGENT ####################
 
 # Function to fetch data from both tables
 @st.cache_data
@@ -232,30 +225,30 @@ def get_combined_data():
     """Fetch data from both DynamoDB tables."""
     # Get listings data
     listings_df = get_dynamodb_data("real_estate_listings")
-    
+
     # Get brokerage agent data
     brokerage_df = get_dynamodb_data("brokerage")
-    
+
     return listings_df, brokerage_df
 
-# Load data from both tables
-listings_data, brokerage_data = get_combined_data()
+# Load sales data from 'real_estate_listings' table
+listings_data, brokerage_agents = get_combined_data()
 
 # Check if data exists
-if listings_data.empty or brokerage_data.empty:
+if listings_data.empty or brokerage_agents.empty:
     st.warning("Missing data required for visualization")
     st.stop()
 
 # Convert dates and prepare data
 listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce")
-brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce")
+brokerage_agents["Date"] = pd.to_datetime(brokerage_agents["Date"], errors="coerce")
 
 # Create month period for merging
 listings_data["Month"] = listings_data["sold_date"].dt.to_period("M")
-brokerage_data["Month"] = brokerage_data["Date"].dt.to_period("M")
+brokerage_agents["Month"] = brokerage_agents["Date"].dt.to_period("M")
 
 # Clean and rename brokerage data
-brokerage_agents = brokerage_data.rename(columns={
+brokerage_agents = brokerage_agents.rename(columns={
     "firm": "Brokerage",
     "Value": "Agent_Count"
 })[["Brokerage", "Month", "Agent_Count"]].dropna()
@@ -311,4 +304,3 @@ if not top10_data.empty:
     st.plotly_chart(fig, use_container_width=True)
 else:
     st.warning("No data available for top brokerages after filtering")
-
