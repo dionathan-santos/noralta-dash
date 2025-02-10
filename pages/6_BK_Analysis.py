@@ -336,23 +336,7 @@ else:
     # Create a line chart showing the deals per agent over time for the top 10 firms.
     # ------------------------------------------------------------
     
-    # Here we assign a specific color for the highlighted firm.
-    color_map_deals = {firm: "red" if firm == "Royal LePage Noralta Real Estate" else None for firm in monthly_deals_top10["Brokerage"].unique()}
-
-    fig_line = px.line(
-        monthly_deals_top10,
-        x="month",
-        y="deals_per_agent",
-        color="Brokerage",
-        title="Monthly Deals per Agent (Top 10 Firms + Noralta)",
-        labels={
-            "month": "Month",
-            "deals_per_agent": "Deals per Agent",
-            "Brokerage": "Firm"
-        },
-        markers=True,
-        color_discrete_map=color_map_deals  # Explicitly assign the highlighted color
-    )
+   
 
     # Optionally increase the line width and marker size for all traces.
     fig_line.update_traces(line=dict(width=3), marker=dict(size=8))
