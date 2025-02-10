@@ -232,8 +232,18 @@ import pandas as pd
 # ---------------------------------------------
 st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
-# Ensure `brokerage_data` is properly loaded from DynamoDB
-if "brokerage" in dynamodb.tables.all():
+# ---------------------------------------------
+# Initialize DynamoDB Connection
+# ---------------------------------------------
+dynamodb = boto3.resource("dynamodb", region_name="us-east-2")  # Adjust region if needed
+
+# List all tables to check existence
+existing_tables = dynamodb.meta.client.list_tables()["TableNames"]
+
+# ---------------------------------------------
+# Load Brokerage Data
+# ---------------------------------------------
+if "brokerage" in existing_tables:
     table = dynamodb.Table("brokerage")
     response = table.scan()
     brokerage_data = pd.DataFrame(response.get("Items", []))
@@ -241,38 +251,57 @@ else:
     st.error("Brokerage table not found in DynamoDB!")
     st.stop()
 
-# Ensure required columns exist
-if not {"Broker", "id"}.issubset(brokerage_data.columns):
+# Ensure required columns exist before processing
+if not set(brokerage_data.columns).intersection({"Broker", "id"}):
     st.error("Missing required columns ('Broker', 'id') in brokerage data!")
     st.stop()
 
-# Convert date-based columns to a long format
+# Convert date-based columns into long format
 brokerage_data_melted = brokerage_data.melt(
     id_vars=['Broker'], var_name='Date', value_name='Average Agents'
 )
 brokerage_data_melted['Date'] = pd.to_datetime(brokerage_data_melted['Date'], errors='coerce')
 brokerage_data_melted = brokerage_data_melted.dropna()
 
+# Convert Date to month-based timestamps
+brokerage_data_melted['Month'] = brokerage_data_melted['Date'].dt.to_period('M').dt.to_timestamp()
+
+# ---------------------------------------------
+# Load Real Estate Listings Data
+# ---------------------------------------------
+if "real_estate_listings" in existing_tables:
+    table = dynamodb.Table("real_estate_listings")
+    response = table.scan()
+    listings_data = pd.DataFrame(response.get("Items", []))
+else:
+    st.error("Real Estate Listings table not found in DynamoDB!")
+    st.stop()
+
 # Ensure `filtered_listings` exists before using it
 if "sold_date" in listings_data.columns:
-    filtered_listings = listings_data.copy()  # Use the main dataset
-    filtered_listings["sold_date"] = pd.to_datetime(filtered_listings["sold_date"], errors="coerce")
+    listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce")
 else:
     st.error("Missing 'sold_date' column in listings data!")
     st.stop()
 
+# ---------------------------------------------
+# Visualization: Deals Per Agent by Brokers (Top 10 + Noralta)
+# ---------------------------------------------
+st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
 # Filter listings within the date range
-filtered_listings = filtered_listings[
-    (filtered_listings['sold_date'] >= pd.Timestamp(start_date)) &
-    (filtered_listings['sold_date'] <= pd.Timestamp(end_date))
+filtered_listings = listings_data[
+    (listings_data['sold_date'] >= pd.Timestamp(start_date)) &
+    (listings_data['sold_date'] <= pd.Timestamp(end_date))
 ].copy()
 
 # Extract the month for each transaction
 filtered_listings['Month'] = filtered_listings['sold_date'].dt.to_period('M').dt.to_timestamp()
 
 # Count total deals (Listing + Buyer) per month per broker
-monthly_combined_deals = pd.DataFrame()
+monthly_combined_deals = pd.Data
+
+Frame()
 months = filtered_listings['Month'].unique()
 for month in months:
     month_data = filtered_listings[filtered_listings['Month'] == month]
@@ -284,15 +313,9 @@ for month in months:
     month_deals['Month'] = month
     monthly_combined_deals = pd.concat([monthly_combined_deals, month_deals], ignore_index=True)
 
-# Ensure brokerage data has date-based agent counts
-brokerage_data_melted = brokerage_data.melt(id_vars=['Broker'], var_name='Date', value_name='Average Agents')
-brokerage_data_melted['Date'] = pd.to_datetime(brokerage_data_melted['Date'], errors='coerce')
-brokerage_data_melted = brokerage_data_melted.dropna()
-
-# Convert Date to month-based timestamps
-brokerage_data_melted['Month'] = brokerage_data_melted['Date'].dt.to_period('M').dt.to_timestamp()
-
+# ---------------------------------------------
 # Merge Deals with Agent Counts by Brokerage & Month
+# ---------------------------------------------
 merged_monthly = pd.merge(
     monthly_combined_deals,
     brokerage_data_melted,
@@ -325,7 +348,9 @@ royal_data = merged_monthly[merged_monthly['Brokerage'] == "Royal LePage Noralta
 if not royal_data.empty and "Royal LePage Noralta Real Estate" not in top_brokers:
     filtered_monthly_top = pd.concat([filtered_monthly_top, royal_data])
 
+# ---------------------------------------------
 # Create Line Chart
+# ---------------------------------------------
 fig_line = px.line(
     filtered_monthly_top,
     x='Month',
