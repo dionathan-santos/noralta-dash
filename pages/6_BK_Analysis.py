@@ -119,10 +119,13 @@ highlight_brokerage = "Royal LePage Noralta Real Estate"
 # Function to create a bar chart with highlighted brokerage
 def create_highlighted_bar_chart(df, x_col, y_col, title):
     """Creates a bar chart where 'Royal LePage Noralta Real Estate' is highlighted in red."""
-    df = df.copy()  # Avoid modifying original DataFrame
+    df = df.copy()  # Avoid modifying the original DataFrame
 
-    # Assign colors: "red" for the highlight, "blue" for others
+    # Assign colors: "red" for the highlight, "royalblue" for others
     df["Color"] = df[x_col].apply(lambda x: "red" if x == highlight_brokerage else "royalblue")
+
+    # Ensure the x-axis is ordered correctly (sorted by y_col values)
+    df = df.sort_values(by=y_col, ascending=False)
 
     fig = px.bar(
         df,
@@ -132,10 +135,12 @@ def create_highlighted_bar_chart(df, x_col, y_col, title):
         labels={x_col: "Brokerage", y_col: "Number of Deals"},
         text_auto=True,
         color=df["Color"],  # Assign colors dynamically
+        category_orders={x_col: df[x_col].tolist()},  # Ensure correct order
         color_discrete_map={"red": "red", "royalblue": "royalblue"}  # Define color mapping
     )
 
     return fig
+
 
 
 ###################   TOP 10 LISTING FIRMS ####################
