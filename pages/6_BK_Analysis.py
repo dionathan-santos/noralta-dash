@@ -232,6 +232,27 @@ import pandas as pd
 # ---------------------------------------------
 st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
+# Ensure `brokerage_data` is properly loaded from DynamoDB
+if "brokerage" in dynamodb.tables.all():
+    table = dynamodb.Table("brokerage")
+    response = table.scan()
+    brokerage_data = pd.DataFrame(response.get("Items", []))
+else:
+    st.error("Brokerage table not found in DynamoDB!")
+    st.stop()
+
+# Ensure required columns exist
+if not {"Broker", "id"}.issubset(brokerage_data.columns):
+    st.error("Missing required columns ('Broker', 'id') in brokerage data!")
+    st.stop()
+
+# Convert date-based columns to a long format
+brokerage_data_melted = brokerage_data.melt(
+    id_vars=['Broker'], var_name='Date', value_name='Average Agents'
+)
+brokerage_data_melted['Date'] = pd.to_datetime(brokerage_data_melted['Date'], errors='coerce')
+brokerage_data_melted = brokerage_data_melted.dropna()
+
 # Ensure `filtered_listings` exists before using it
 if "sold_date" in listings_data.columns:
     filtered_listings = listings_data.copy()  # Use the main dataset
