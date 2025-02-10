@@ -150,19 +150,32 @@ else:
 
 ###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
 
-# Combine Listing and Buyer Firm Deals
-combined_brokerage_deals = (
-    filtered_data["listing_firm"].value_counts()
-    .add(filtered_data["buyer_firm"].value_counts(), fill_value=0)
-    .reset_index()
-)
-combined_brokerage_deals.columns = ["Brokerage", "Total Deals"]
+# Count the number of deals for listing and buyer sides separately
+listing_deals = filtered_data["listing_firm"].value_counts().rename("Listing Deals")
+buyer_deals = filtered_data["buyer_firm"].value_counts().rename("Buyer Deals")
+
+# Merge both counts into a single DataFrame, filling missing values with 0
+combined_deals = pd.DataFrame({"Brokerage": listing_deals.index}).merge(
+    listing_deals, left_on="Brokerage", right_index=True, how="outer"
+).merge(
+    pd.DataFrame({"Brokerage": buyer_deals.index}).merge(
+        buyer_deals, left_on="Brokerage", right_index=True, how="outer"
+    ),
+    on="Brokerage",
+    how="outer"
+).fillna(0)
+
+# Calculate total deals (listing + buyer)
+combined_deals["Total Deals"] = combined_deals["Listing Deals"] + combined_deals["Buyer Deals"]
+
+# Sort by total deals in descending order
+combined_deals = combined_deals.sort_values(by="Total Deals", ascending=False).head(10)
 
 # Display Chart for Combined Brokerages
 st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
-if not combined_brokerage_deals.empty:
+if not combined_deals.empty:
     fig_combined = px.bar(
-        combined_brokerage_deals.head(10),
+        combined_deals,
         x="Brokerage",
         y="Total Deals",
         title="Top 10 Brokerages by Total Deals (Buyer & Listing)",
@@ -172,3 +185,4 @@ if not combined_brokerage_deals.empty:
     st.plotly_chart(fig_combined)
 else:
     st.warning("No data available for the selected filters.")
+
