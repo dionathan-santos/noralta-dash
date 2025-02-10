@@ -223,3 +223,125 @@ else:
 
 
 
+
+
+
+
+
+
+
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import boto3
+from datetime import datetime
+
+# -----------------------------
+# Assume your existing code has already:
+# - Loaded filtered_data from your "real_estate_listings" table.
+# - Defined the sidebar filters (start_date, end_date, etc.).
+# -----------------------------
+
+# Function to fetch brokerage data from DynamoDB
+@st.cache_data
+def get_brokerage_data():
+    """Fetch data from the 'brokerage' table in DynamoDB."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("brokerage")
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+        return pd.DataFrame(items)
+    except Exception as e:
+        st.error(f"Failed to fetch brokerage data: {str(e)}")
+        return pd.DataFrame()
+
+# Fetch brokerage data and process it
+brokerage_data = get_brokerage_data()
+
+if brokerage_data.empty:
+    st.error("No brokerage data available!")
+else:
+    # Convert 'Date' column to datetime and filter by the same date range
+    brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce").dt.normalize()
+    brokerage_data = brokerage_data[
+        (brokerage_data["Date"] >= pd.to_datetime(start_date)) &
+        (brokerage_data["Date"] <= pd.to_datetime(end_date))
+    ]
+    
+    # Compute the average number of agents per firm.
+    # (Assuming 'Value' holds the agent count for a given record)
+    agents_avg = brokerage_data.groupby("firm")["Value"].mean().reset_index()
+    agents_avg.columns = ["Brokerage", "Avg_Agents"]
+
+    # ------------------------------------------------------------
+    # Process listings data to get cumulative deals per firm over time.
+    # We want to combine both listing and buyer deals.
+    # ------------------------------------------------------------
+    
+    # Create a DataFrame for listing deals
+    listing_deals_df = filtered_data[["sold_date", "listing_firm"]].copy()
+    listing_deals_df = listing_deals_df.rename(columns={"listing_firm": "Brokerage"})
+    listing_deals_df["deal_count"] = 1
+
+    # Create a DataFrame for buyer deals
+    buyer_deals_df = filtered_data[["sold_date", "buyer_firm"]].copy()
+    buyer_deals_df = buyer_deals_df.rename(columns={"buyer_firm": "Brokerage"})
+    buyer_deals_df["deal_count"] = 1
+
+    # Combine both listing and buyer deals into one DataFrame
+    all_deals = pd.concat([listing_deals_df, buyer_deals_df])
+    
+    # Group by firm and sold_date to count deals per day per firm
+    daily_deals = all_deals.groupby(["Brokerage", "sold_date"]).agg({"deal_count": "sum"}).reset_index()
+    
+    # Sort by firm and date then compute cumulative deals over time for each firm
+    daily_deals = daily_deals.sort_values(["Brokerage", "sold_date"])
+    daily_deals["cumulative_deals"] = daily_deals.groupby("Brokerage")["deal_count"].cumsum()
+
+    # ------------------------------------------------------------
+    # Identify the top 10 firms by total deals over the selected period.
+    # ------------------------------------------------------------
+    total_deals = daily_deals.groupby("Brokerage")["deal_count"].sum().reset_index()
+    total_deals = total_deals.sort_values("deal_count", ascending=False).head(10)
+    top10_firms = total_deals["Brokerage"].tolist()
+    
+    # Filter the daily_deals DataFrame to only include the top 10 firms
+    daily_deals_top10 = daily_deals[daily_deals["Brokerage"].isin(top10_firms)]
+
+    # Merge with the average agents data so we can calculate deals per agent
+    daily_deals_top10 = daily_deals_top10.merge(agents_avg, on="Brokerage", how="left")
+
+    # Calculate deals per agent (cumulative deals divided by the average number of agents)
+    daily_deals_top10["deals_per_agent"] = daily_deals_top10["cumulative_deals"] / daily_deals_top10["Avg_Agents"]
+
+    # ------------------------------------------------------------
+    # Create a line chart showing the deals per agent over time for the top 10 firms.
+    # ------------------------------------------------------------
+    fig_line = px.line(
+        daily_deals_top10,
+        x="sold_date",
+        y="deals_per_agent",
+        color="Brokerage",
+        title="Cumulative Deals per Agent Over Time (Top 10 Firms)",
+        labels={
+            "sold_date": "Sold Date",
+            "deals_per_agent": "Deals per Agent",
+            "Brokerage": "Firm"
+        }
+    )
+
+    st.plotly_chart(fig_line)
