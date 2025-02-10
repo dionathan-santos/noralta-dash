@@ -224,146 +224,91 @@ else:
 
 
 
-###################  LINE CHART - DEALS PER AGENT 
+###################  LINE CHART - DEALS PER AGENT (COMBINED) ####################
 
-import streamlit as st
-import pandas as pd
-import plotly.express as px
-import boto3
-
-# Function to retrieve AWS credentials from Streamlit secrets
-def get_aws_credentials():
-    """Retrieves AWS credentials from Streamlit secrets."""
-    try:
-        aws_secrets = st.secrets["aws"]
-        return (
-            aws_secrets["AWS_ACCESS_KEY_ID"],
-            aws_secrets["AWS_SECRET_ACCESS_KEY"],
-            aws_secrets.get("AWS_REGION", "us-east-2")
-        )
-    except KeyError:
-        st.error("AWS credentials are missing! Check Streamlit secrets.")
-        return None, None, None
-
-# Function to fetch data from DynamoDB
+# Function to fetch data from both tables
 @st.cache_data
-def get_dynamodb_data(table_name):
-    """Fetch data from a specific DynamoDB table and return as Pandas DataFrame."""
-    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
-    if not aws_access_key or not aws_secret_key:
-        return pd.DataFrame()
+def get_combined_data():
+    """Fetch data from both DynamoDB tables."""
+    # Get listings data
+    listings_df = get_dynamodb_data("real_estate_listings")
+    
+    # Get brokerage agent data
+    brokerage_df = get_dynamodb_data("brokerage")
+    
+    return listings_df, brokerage_df
 
-    try:
-        session = boto3.Session(
-            aws_access_key_id=aws_access_key,
-            aws_secret_access_key=aws_secret_key,
-            region_name=aws_region
-        )
-        dynamodb = session.resource("dynamodb")
-        table = dynamodb.Table(table_name)
+# Load data from both tables
+listings_data, brokerage_data = get_combined_data()
 
-        items, last_evaluated_key = [], None
-        while True:
-            if last_evaluated_key:
-                response = table.scan(ExclusiveStartKey=last_evaluated_key)
-            else:
-                response = table.scan()
-                
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-
-            if not last_evaluated_key:
-                break
-
-        return pd.DataFrame(items)
-
-    except Exception as e:
-        st.error(f"Failed to fetch data from {table_name}: {str(e)}")
-        return pd.DataFrame()
-
-###################  FETCH DATA FROM BOTH TABLES ####################
-
-# Load sales data from 'real_estate_listings' table
-listings_data = get_dynamodb_data("real_estate_listings")
-
-# Load agent count data from 'brokerage' table
-brokerage_agents = get_dynamodb_data("brokerage")
-
-###################  ENSURE REQUIRED COLUMNS EXIST ####################
-
-# Validate sales data
-required_sales_cols = {"sold_date", "listing_firm"}
-if not required_sales_cols.issubset(listings_data.columns):
-    st.error(f"Sales data is missing required columns: {required_sales_cols - set(listings_data.columns)}")
+# Check if data exists
+if listings_data.empty or brokerage_data.empty:
+    st.warning("Missing data required for visualization")
     st.stop()
 
-# Validate brokerage data
-required_brokerage_cols = {"firm", "Date", "Value"}
-if not required_brokerage_cols.issubset(brokerage_agents.columns):
-    st.error(f"Brokerage agent count data is missing required columns: {required_brokerage_cols - set(brokerage_agents.columns)}")
-    st.stop()
-
-###################  PREPARE DATA ####################
-
-# Convert 'sold_date' to datetime format
+# Convert dates and prepare data
 listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce")
+brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce")
 
-# Extract 'Month' (YYYY-MM) from 'sold_date'
+# Create month period for merging
 listings_data["Month"] = listings_data["sold_date"].dt.to_period("M")
+brokerage_data["Month"] = brokerage_data["Date"].dt.to_period("M")
 
-# Rename brokerage agent data columns for consistency
-brokerage_agents = brokerage_agents.rename(columns={"firm": "Brokerage", "Date": "Month", "Value": "Agent Count"})
+# Clean and rename brokerage data
+brokerage_agents = brokerage_data.rename(columns={
+    "firm": "Brokerage",
+    "Value": "Agent_Count"
+})[["Brokerage", "Month", "Agent_Count"]].dropna()
 
-# Convert 'Month' in brokerage data to datetime (YYYY-MM)
-brokerage_agents["Month"] = pd.to_datetime(brokerage_agents["Month"], errors="coerce").dt.to_period("M")
+# Combine listing and buyer firms
+combined_firms = pd.concat([
+    filtered_data[['sold_date', 'listing_firm']].rename(columns={'listing_firm': 'firm'}),
+    filtered_data[['sold_date', 'buyer_firm']].rename(columns={'buyer_firm': 'firm'})
+]).dropna()
 
-###################  MERGE SALES & BROKERAGE DATA ####################
-
-# Group deals by brokerage & month
-daily_deals = listings_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
-
-# Extract 'Month' from 'sold_date' to match with agent count data
+# Calculate daily deals per firm
+daily_deals = combined_firms.groupby(['sold_date', 'firm']).size().reset_index(name='deals')
 daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")
 
-# Merge sales data with agent count data (by brokerage & month)
-daily_deals = daily_deals.merge(
+# Merge with agent counts
+merged_data = daily_deals.merge(
     brokerage_agents,
-    left_on=["listing_firm", "Month"],
-    right_on=["Brokerage", "Month"],
-    how="left"
-)
+    left_on=['firm', 'Month'],
+    right_on=['Brokerage', 'Month'],
+    how='left'
+).dropna(subset=['Agent_Count'])
 
-# Drop rows with missing agent count (ensures only valid comparisons)
-daily_deals = daily_deals.dropna(subset=["Agent Count"])
+# Calculate deals per agent
+merged_data['deals_per_agent'] = merged_data['deals'] / merged_data['Agent_Count']
 
-# Calculate Deals Per Agent
-daily_deals["Deals Per Agent"] = daily_deals["Total Deals"] / daily_deals["Agent Count"]
+# Get top 10 brokerages from combined deals
+top_10_brokerages = combined_deals.head(10)['Brokerage'].tolist()
 
-###################  PLOT GRAPH: DEALS PER AGENT OVER TIME ####################
+# Filter for top 10
+top10_data = merged_data[merged_data['firm'].isin(top_10_brokerages)]
 
-st.subheader("Daily Deals Per Agent for Top 10 Brokerages")
+# Create line chart
+st.subheader("Daily Deals Per Agent - Top 10 Brokerages (Combined)")
+if not top10_data.empty:
+    fig = px.line(
+        top10_data,
+        x="sold_date",
+        y="deals_per_agent",
+        color="firm",
+        markers=True,
+        title="Daily Deals Per Agent (Combined Buyer & Listing Firms)",
+        labels={
+            "sold_date": "Date",
+            "deals_per_agent": "Deals per Agent",
+            "firm": "Brokerage"
+        }
+    )
+    fig.update_layout(
+        hovermode="x unified",
+        yaxis_tickformat=".2f",
+        height=600
+    )
+    st.plotly_chart(fig, use_container_width=True)
+else:
+    st.warning("No data available for top brokerages after filtering")
 
-# Get top 10 brokerages by total transactions
-top_brokerages = (
-    daily_deals.groupby("listing_firm")["Total Deals"].sum()
-    .reset_index()
-    .sort_values(by="Total Deals", ascending=False)
-    .head(10)["listing_firm"]
-    .tolist()
-)
-
-# Filter data for only the top 10 brokerages
-daily_deals_top10 = daily_deals[daily_deals["listing_firm"].isin(top_brokerages)]
-
-# Generate the line chart
-fig_line = px.line(
-    daily_deals_top10,
-    x="sold_date",
-    y="Deals Per Agent",
-    color="listing_firm",
-    title="Daily Deals Per Agent for Top 10 Brokerages",
-    labels={"sold_date": "Date", "Deals Per Agent": "Deals Per Agent", "listing_firm": "Brokerage"},
-    markers=True
-)
-
-st.plotly_chart(fig_line)

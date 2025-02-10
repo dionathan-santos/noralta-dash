@@ -1,57 +1,42 @@
 import boto3
-import json
-from decimal import Decimal
 
-# Set AWS region
-aws_region = "us-east-2"
+# Initialize DynamoDB client
+dynamodb = boto3.client('dynamodb', region_name='us-east-2')  # Replace with your AWS region
 
-# Initialize DynamoDB resource
-dynamodb = boto3.resource("dynamodb", region_name=aws_region)
+# List all tables
+tables = dynamodb.list_tables()['TableNames']
 
-# Reference the 'brokerage' table
-table = dynamodb.Table("brokerage")
-
-# Function to scan and retrieve all items from the table
-def fetch_brokerage_data():
-    """Fetch all records from the 'brokerage' table and convert Decimals to float/int."""
+# Function to get full schema of a table
+def get_full_schema(table_name):
+    # Get table description
+    table_description = dynamodb.describe_table(TableName=table_name)
+    
+    # Extract primary key attributes
+    key_attributes = {attr['AttributeName']: attr['AttributeType'] for attr in table_description['Table']['AttributeDefinitions']}
+    
+    # Scan a small portion of the table to detect additional attributes
     try:
-        items = []
-        last_evaluated_key = None
-
-        while True:
-            if last_evaluated_key:
-                response = table.scan(ExclusiveStartKey=last_evaluated_key)
-            else:
-                response = table.scan()
-
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-
-            if not last_evaluated_key:
-                break
-
-        return items
-
+        scan_response = dynamodb.scan(TableName=table_name, Limit=10)  # Scan a few records
     except Exception as e:
-        print(f"Error fetching data: {e}")
-        return None
+        print(f"Error scanning table {table_name}: {e}")
+        return
 
-# Helper function to convert Decimal to int/float
-def convert_decimals(obj):
-    """Recursively converts Decimal objects to int or float."""
-    if isinstance(obj, list):
-        return [convert_decimals(i) for i in obj]
-    elif isinstance(obj, dict):
-        return {k: convert_decimals(v) for k, v in obj.items()}
-    elif isinstance(obj, Decimal):
-        return int(obj) if obj % 1 == 0 else float(obj)
-    return obj
+    # Extract non-key attributes
+    all_attributes = key_attributes.copy()  # Start with known key attributes
+    
+    for item in scan_response.get('Items', []):
+        for key, value in item.items():
+            if key not in all_attributes:
+                # Determine type from DynamoDB JSON format
+                dtype = list(value.keys())[0]  # Extract type (e.g., 'S', 'N', 'BOOL')
+                all_attributes[key] = dtype
 
-# Fetch and print the data
-brokerage_data = fetch_brokerage_data()
+    # Print schema
+    print(f"\nSchema for table: {table_name}")
+    for column, dtype in all_attributes.items():
+        print(f"Column: {column}, Type: {dtype}")
+    print("-" * 40)
 
-if brokerage_data:
-    converted_data = convert_decimals(brokerage_data)  # Convert Decimal values
-    print(json.dumps(converted_data, indent=4))  # Pretty-print the results
-else:
-    print("No data found or an error occurred.")
+# Loop through tables and print full schema
+for table in tables:
+    get_full_schema(table)
