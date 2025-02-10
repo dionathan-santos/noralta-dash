@@ -54,7 +54,8 @@ def get_dynamodb_data(table_name):
         return pd.DataFrame()
 
 # Load data from AWS DynamoDB
-listings_data = get_dynamodb_data()
+listings_data = get_dynamodb_data("real_estate_listings")  # Pass the table name explicitly
+
 
 # Ensure data is loaded
 if listings_data.empty:
