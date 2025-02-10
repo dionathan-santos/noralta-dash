@@ -226,8 +226,26 @@ else:
 
 ###################  LINE CHART - DEALS PER AGENT 
 
-###################  LOAD BROKERAGE AGENT DATA ####################
+import streamlit as st
+import pandas as pd
+import plotly.express as px
+import boto3
 
+# Function to retrieve AWS credentials from Streamlit secrets
+def get_aws_credentials():
+    """Retrieves AWS credentials from Streamlit secrets."""
+    try:
+        aws_secrets = st.secrets["aws"]
+        return (
+            aws_secrets["AWS_ACCESS_KEY_ID"],
+            aws_secrets["AWS_SECRET_ACCESS_KEY"],
+            aws_secrets.get("AWS_REGION", "us-east-2")
+        )
+    except KeyError:
+        st.error("AWS credentials are missing! Check Streamlit secrets.")
+        return None, None, None
+
+# Function to fetch data from DynamoDB
 @st.cache_data
 def get_dynamodb_data(table_name):
     """Fetch data from a specific DynamoDB table and return as Pandas DataFrame."""
@@ -236,19 +254,24 @@ def get_dynamodb_data(table_name):
         return pd.DataFrame()
 
     try:
-        dynamodb = boto3.resource(
-            "dynamodb",
+        session = boto3.Session(
             aws_access_key_id=aws_access_key,
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
+        dynamodb = session.resource("dynamodb")
         table = dynamodb.Table(table_name)
 
         items, last_evaluated_key = [], None
         while True:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            if last_evaluated_key:
+                response = table.scan(ExclusiveStartKey=last_evaluated_key)
+            else:
+                response = table.scan()
+                
             items.extend(response.get("Items", []))
             last_evaluated_key = response.get("LastEvaluatedKey")
+
             if not last_evaluated_key:
                 break
 
@@ -258,37 +281,51 @@ def get_dynamodb_data(table_name):
         st.error(f"Failed to fetch data from {table_name}: {str(e)}")
         return pd.DataFrame()
 
-# Fetch Agent Count Data from "brokerage" Table
+###################  FETCH DATA FROM BOTH TABLES ####################
+
+# Load sales data from 'real_estate_listings' table
+listings_data = get_dynamodb_data("real_estate_listings")
+
+# Load agent count data from 'brokerage' table
 brokerage_agents = get_dynamodb_data("brokerage")
 
-# Ensure necessary columns exist
-if not {"firm", "Date", "Value"}.issubset(brokerage_agents.columns):
-    st.error("Brokerage agent count data is missing required columns!")
+###################  ENSURE REQUIRED COLUMNS EXIST ####################
+
+# Validate sales data
+required_sales_cols = {"sold_date", "listing_firm"}
+if not required_sales_cols.issubset(listings_data.columns):
+    st.error(f"Sales data is missing required columns: {required_sales_cols - set(listings_data.columns)}")
     st.stop()
 
-# Rename columns to match expected format
+# Validate brokerage data
+required_brokerage_cols = {"firm", "Date", "Value"}
+if not required_brokerage_cols.issubset(brokerage_agents.columns):
+    st.error(f"Brokerage agent count data is missing required columns: {required_brokerage_cols - set(brokerage_agents.columns)}")
+    st.stop()
+
+###################  PREPARE DATA ####################
+
+# Convert 'sold_date' to datetime format
+listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce")
+
+# Extract 'Month' (YYYY-MM) from 'sold_date'
+listings_data["Month"] = listings_data["sold_date"].dt.to_period("M")
+
+# Rename brokerage agent data columns for consistency
 brokerage_agents = brokerage_agents.rename(columns={"firm": "Brokerage", "Date": "Month", "Value": "Agent Count"})
 
-# Convert 'Month' to datetime (YYYY-MM)
+# Convert 'Month' in brokerage data to datetime (YYYY-MM)
 brokerage_agents["Month"] = pd.to_datetime(brokerage_agents["Month"], errors="coerce").dt.to_period("M")
 
-###################  PREPARE DAILY DEALS PER BROKERAGE ####################
+###################  MERGE SALES & BROKERAGE DATA ####################
 
-# Ensure 'sold_date' and 'listing_firm' exist in filtered data
-if "sold_date" not in filtered_data.columns or "listing_firm" not in filtered_data.columns:
-    st.error("Missing required columns in sales data!")
-    st.stop()
+# Group deals by brokerage & month
+daily_deals = listings_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
 
-# Group deals by day and brokerage
-daily_deals = filtered_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
-
-# Convert 'sold_date' to datetime format (YYYY-MM-DD)
-daily_deals["sold_date"] = pd.to_datetime(daily_deals["sold_date"])
-
-# Extract year-month to match with agent count data
+# Extract 'Month' from 'sold_date' to match with agent count data
 daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")
 
-# Merge daily deals with agent count data (matching by brokerage and month)
+# Merge sales data with agent count data (by brokerage & month)
 daily_deals = daily_deals.merge(
     brokerage_agents,
     left_on=["listing_firm", "Month"],
@@ -302,17 +339,20 @@ daily_deals = daily_deals.dropna(subset=["Agent Count"])
 # Calculate Deals Per Agent
 daily_deals["Deals Per Agent"] = daily_deals["Total Deals"] / daily_deals["Agent Count"]
 
-###################  PLOT LINE CHART: DEALS PER AGENT OVER TIME ####################
+###################  PLOT GRAPH: DEALS PER AGENT OVER TIME ####################
 
 st.subheader("Daily Deals Per Agent for Top 10 Brokerages")
 
-# Ensure 'combined_deals' exists and contains the top brokerages
-if "Brokerage" not in combined_deals.columns:
-    st.error("Missing 'Brokerage' column in combined_deals!")
-    st.stop()
-
 # Get top 10 brokerages by total transactions
-top_brokerages = combined_deals["Brokerage"].tolist()
+top_brokerages = (
+    daily_deals.groupby("listing_firm")["Total Deals"].sum()
+    .reset_index()
+    .sort_values(by="Total Deals", ascending=False)
+    .head(10)["listing_firm"]
+    .tolist()
+)
+
+# Filter data for only the top 10 brokerages
 daily_deals_top10 = daily_deals[daily_deals["listing_firm"].isin(top_brokerages)]
 
 # Generate the line chart
