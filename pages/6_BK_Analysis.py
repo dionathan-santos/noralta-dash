@@ -232,8 +232,14 @@ import pandas as pd
 # ---------------------------------------------
 st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
 
-# Ensure sold_date is in datetime format
-filtered_listings["sold_date"] = pd.to_datetime(filtered_listings["sold_date"], errors="coerce")
+# Ensure `filtered_listings` exists before using it
+if "sold_date" in listings_data.columns:
+    filtered_listings = listings_data.copy()  # Use the main dataset
+    filtered_listings["sold_date"] = pd.to_datetime(filtered_listings["sold_date"], errors="coerce")
+else:
+    st.error("Missing 'sold_date' column in listings data!")
+    st.stop()
+
 
 # Filter listings within the date range
 filtered_listings = filtered_listings[
