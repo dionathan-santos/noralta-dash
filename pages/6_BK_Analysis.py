@@ -228,8 +228,38 @@ else:
 
 ###################  LOAD BROKERAGE AGENT DATA ####################
 
-# Fetch brokerage agent count data from the existing DynamoDB connection
-brokerage_agents = listings_data.copy()  # Reuse the existing dataset
+@st.cache_data
+def get_dynamodb_data(table_name):
+    """Fetch data from a specific DynamoDB table and return as Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table(table_name)
+
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        return pd.DataFrame(items)
+
+    except Exception as e:
+        st.error(f"Failed to fetch data from {table_name}: {str(e)}")
+        return pd.DataFrame()
+
+# Fetch Agent Count Data from "brokerage" Table
+brokerage_agents = get_dynamodb_data("brokerage")
 
 # Ensure necessary columns exist
 if not {"firm", "Date", "Value"}.issubset(brokerage_agents.columns):
@@ -297,5 +327,3 @@ fig_line = px.line(
 )
 
 st.plotly_chart(fig_line)
-
-
