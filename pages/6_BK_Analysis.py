@@ -134,7 +134,7 @@ def create_highlighted_bar_chart(df, x_col, y_col, title):
         title=title,
         labels={x_col: "Brokerage", y_col: "Number of Deals"},
         text_auto=True,
-        color=df["Color"],  # Assign colors dynamically
+        #color=df["Color"],  # Assign colors dynamically
         category_orders={x_col: df[x_col].tolist()},  # Ensure correct order
         color_discrete_map={"red": "red", "royalblue": "royalblue"}  # Define color mapping
     )
