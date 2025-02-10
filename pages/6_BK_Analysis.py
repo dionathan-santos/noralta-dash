@@ -254,7 +254,7 @@ if not buyer_brokerage_deals.empty:
 else:
     st.warning("No data available for the selected filters.")
 
-
+####################################### line chart showing deals over time
 
 # Create line chart showing deals over time
 st.subheader("Deals Over Time by Brokerage")
@@ -288,6 +288,73 @@ fig_line.update_layout(
 
 # Display the chart
 st.plotly_chart(fig_line)
+
+# Load and process brokerage data
+brokerage_data = get_brokerage_data()
+
+if not brokerage_data.empty:
+    # Convert date columns to datetime
+    brokerage_data['date'] = pd.to_datetime(brokerage_data['date'])
+    brokerage_data['Month'] = brokerage_data['date'].dt.to_period('M')
+    
+    # Create Month column in filtered_data
+    filtered_data['Month'] = pd.to_datetime(filtered_data['sold_date']).dt.to_period('M')
+    
+    # Process monthly deals for listing and buyer sides
+    listing_monthly = filtered_data.groupby(['Month', 'listing_firm']).size().reset_index(name='listing_deals')
+    buyer_monthly = filtered_data.groupby(['Month', 'buyer_firm']).size().reset_index(name='buyer_deals')
+    
+    # Calculate average agents and merge with deals data
+    monthly_agents = brokerage_data.groupby(['Month', 'brokerage_name'])['agent_count'].mean().reset_index()
+    
+    # Merge listing and buyer deals
+    monthly_performance = pd.merge(
+        listing_monthly,
+        buyer_monthly,
+        left_on=['Month', 'listing_firm'],
+        right_on=['Month', 'buyer_firm'],
+        how='outer'
+    ).fillna(0)
+    
+    # Merge with agent counts
+    monthly_performance = pd.merge(
+        monthly_performance,
+        monthly_agents,
+        left_on=['Month', 'listing_firm'],
+        right_on=['Month', 'brokerage_name'],
+        how='left'
+    )
+    
+    # Calculate deals per agent
+    monthly_performance['total_deals'] = monthly_performance['listing_deals'] + monthly_performance['buyer_deals']
+    monthly_performance['deals_per_agent'] = monthly_performance['total_deals'] / monthly_performance['agent_count']
+    
+    # Create line chart for deals per agent
+    st.subheader("Monthly Deals per Agent by Brokerage")
+    
+    fig_efficiency = px.line(
+        monthly_performance,
+        x='Month',
+        y='deals_per_agent',
+        color='listing_firm',
+        title='Monthly Deals per Agent Ratio by Brokerage',
+        labels={
+            'Month': 'Month',
+            'deals_per_agent': 'Deals per Agent',
+            'listing_firm': 'Brokerage'
+        }
+    )
+    
+    fig_efficiency.update_layout(
+        xaxis_title="Month",
+        yaxis_title="Deals per Agent",
+        legend_title="Brokerage",
+        hovermode='x unified'
+    )
+    
+    st.plotly_chart(fig_efficiency)
+else:
+    st.warning("No brokerage data available for analysis.")
 
 # Load and process brokerage data
 brokerage_data = get_brokerage_data()
