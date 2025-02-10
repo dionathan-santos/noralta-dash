@@ -4,6 +4,9 @@ import plotly.express as px
 import boto3
 from datetime import datetime
 
+###    git add . ; git commit -m "new dash3" ; git push origin main  
+
+
 # Set page title and layout
 st.set_page_config(page_title="Brokerage Performance Analysis", layout="wide")
 st.title("Brokerage Performance Analysis")
@@ -475,3 +478,65 @@ else:
     )
     
     st.plotly_chart(fig_line)
+
+
+# ---------------------------------------------
+# Visualization: Monthly Market Share by Firm (%)
+# ---------------------------------------------
+st.header("Monthly Market Share by Firm (%) - Top 10 + Noralta")
+
+# Create a copy of filtered_data and add a Month column
+market_data = filtered_data.copy()
+market_data['Month'] = market_data['sold_date'].dt.to_period('M').dt.to_timestamp()
+
+# Calculate monthly deals per firm from the listing side
+monthly_deals_listing = (
+    market_data.groupby(['listing_firm', 'Month']).size().reset_index(name='Deals')
+)
+# Calculate monthly deals per firm from the buyer side
+monthly_deals_buyer = (
+    market_data.groupby(['buyer_firm', 'Month']).size().reset_index(name='Deals')
+)
+
+# Rename the firm columns to a common name
+monthly_deals_listing = monthly_deals_listing.rename(columns={'listing_firm': 'Firm'})
+monthly_deals_buyer = monthly_deals_buyer.rename(columns={'buyer_firm': 'Firm'})
+
+# Combine the two dataframes and sum the deals per firm per month
+monthly_deals = pd.concat([monthly_deals_listing, monthly_deals_buyer], axis=0)
+monthly_deals = monthly_deals.groupby(['Firm', 'Month'])['Deals'].sum().reset_index()
+
+# Calculate total monthly deals from both sides (using the market_data copy)
+total_monthly_deals = market_data.groupby('Month').size().reset_index(name='Total Deals')
+
+# Merge monthly deals with total monthly deals to compute market share
+market_share = pd.merge(monthly_deals, total_monthly_deals, on='Month')
+market_share['Market Share (%)'] = (market_share['Deals'] / market_share['Total Deals']) * 100
+
+# Determine the top 10 firms by overall market share (summing over all months)
+top_firms = market_share.groupby('Firm')['Market Share (%)'].sum().nlargest(10).index.tolist()
+
+# Ensure "Royal LePage Noralta Real Estate" is included in the top firms
+highlight_firm = "Royal LePage Noralta Real Estate"
+if highlight_firm not in top_firms:
+    top_firms.append(highlight_firm)
+
+# Filter the market share data to only include the top firms
+market_share_top = market_share[market_share['Firm'].isin(top_firms)].drop_duplicates(subset=['Firm', 'Month'])
+
+# Create the line chart using Plotly Express
+fig_market_share = px.line(
+    market_share_top,
+    x='Month',
+    y='Market Share (%)',
+    color='Firm',
+    markers=True,
+    title="Monthly Market Share by Firm (%) - Top 10 + Noralta"
+)
+fig_market_share.update_layout(
+    xaxis_title="Month",
+    yaxis_title="Market Share (%)",
+    legend_title="Firm",
+    margin=dict(b=120)
+)
+st.plotly_chart(fig_market_share, use_container_width=True)
