@@ -230,30 +230,42 @@ import streamlit as st
 
 ###################   DAILY DEALS PER AGENT LINE CHART ####################
 
-# Ensure 'sold_date' column exists
+###################   DAILY DEALS PER AGENT LINE CHART ####################
+
+# Ensure 'sold_date' column exists in filtered_data
 if "sold_date" in filtered_data.columns:
     # Step 1: Count deals per brokerage per day
     daily_deals = filtered_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
 else:
     daily_deals = pd.DataFrame(columns=["sold_date", "listing_firm", "Total Deals"])
 
+
+### FIX: Ensure brokerage_data is defined before using it ###
+try:
+    brokerage_data = get_dynamodb_data("brokerage")  # Load the brokerage table from DynamoDB
+except Exception as e:
+    st.error(f"Failed to load brokerage data: {e}")
+    brokerage_data = pd.DataFrame()  # Ensure brokerage_data is always defined
+
+
 # Step 2: Extract monthly agent count from brokerage table
-if "Broker" in brokerage_data.columns:  
+if not brokerage_data.empty and "Broker" in brokerage_data.columns:
     # Convert brokerage columns to numeric (ignoring non-date columns)
     brokerage_melted = brokerage_data.melt(id_vars=["Broker"], var_name="Month", value_name="Total Agents")
-    
+
     # Convert Month to datetime format (only considering Year-Month)
     brokerage_melted["Month"] = pd.to_datetime(brokerage_melted["Month"], errors="coerce").dt.to_period("M")
-    
+
     # Rename Broker column to match listing_firm
     brokerage_melted.rename(columns={"Broker": "listing_firm"}, inplace=True)
 else:
     brokerage_melted = pd.DataFrame(columns=["listing_firm", "Month", "Total Agents"])
 
+
 # Step 3: Merge daily deal data with agent count (using the closest available month)
 if not daily_deals.empty and not brokerage_melted.empty:
     daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")  # Convert sold_date to Year-Month
-    
+
     # Merge deals per brokerage per month with the agent count
     deals_per_agent = daily_deals.merge(
         brokerage_melted, on=["listing_firm", "Month"], how="left"
@@ -263,6 +275,7 @@ if not daily_deals.empty and not brokerage_melted.empty:
     deals_per_agent["Deals per Agent"] = deals_per_agent["Total Deals"] / deals_per_agent["Total Agents"].replace(0, 1)
 else:
     deals_per_agent = pd.DataFrame(columns=["sold_date", "listing_firm", "Deals per Agent"])
+
 
 # Step 5: Plot the line chart for top 10 brokerages (by total deals)
 top_10_brokerages = combined_deals["Brokerage"].tolist()  # Get the top 10 firms
@@ -283,4 +296,3 @@ if not filtered_chart_data.empty:
     st.plotly_chart(fig_line)
 else:
     st.warning("No data available for the selected filters.")
-
