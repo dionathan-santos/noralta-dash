@@ -227,8 +227,7 @@ else:
 
 
 
-st.write("Monthly Deals for Noralta:", monthly_deals[monthly_deals["Brokerage"] == "Royal LePage Noralta Real Estate"])
-st.write("Market Share for Noralta:", market_share[market_share["Firm"] == "Royal LePage Noralta Real Estate"])
+
 
 
 
@@ -558,3 +557,7 @@ fig_market_share.update_layout(
     margin=dict(b=120)
 )
 st.plotly_chart(fig_market_share, use_container_width=True)
+
+
+st.write("Monthly Deals for Noralta:", monthly_deals[monthly_deals["Brokerage"] == "Royal LePage Noralta Real Estate"])
+st.write("Market Share for Noralta:", market_share[market_share["Firm"] == "Royal LePage Noralta Real Estate"])
