@@ -557,7 +557,5 @@ else:
     st.warning("No data available for the selected filters.")
 
 
-st.write("Monthly Deals for Noralta:", brokerage_data[brokerage_data["Brokerage"] == "Royal LePage Noralta Real Estate"])
-st.write("Market Share for Noralta:", market_share[market_share["Firm"] == "Royal LePage Noralta Real Estate"])
 
 
