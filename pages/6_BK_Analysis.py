@@ -105,6 +105,9 @@ col1, col2 = st.columns(2)
 col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
 
+
+###################   TOP 10 LINSTING FIRMS ####################
+
 # Plot Bar Chart for Top 10 Brokerages
 st.subheader("Linsting Side - Top 10 Brokerages with Most Deals")
 if not brokerage_deals.empty:
@@ -120,9 +123,6 @@ if not brokerage_deals.empty:
 else:
     st.warning("No data available for the selected filters.")
 
-# Display filtered data table
-st.subheader("Filtered Listings Data")
-st.dataframe(filtered_data)
 
 
 ###################   TOP 10 BUYER FIRMS ####################
@@ -144,5 +144,31 @@ if not buyer_brokerage_deals.empty:
         text_auto=True
     )
     st.plotly_chart(fig_buyer)
+else:
+    st.warning("No data available for the selected filters.")
+
+
+###################   TOP 10 COMBINED BUYER & LISTING FIRMS ####################
+
+# Combine Listing and Buyer Firm Deals
+combined_brokerage_deals = (
+    filtered_data["listing_firm"].value_counts()
+    .add(filtered_data["buyer_firm"].value_counts(), fill_value=0)
+    .reset_index()
+)
+combined_brokerage_deals.columns = ["Brokerage", "Total Deals"]
+
+# Display Chart for Combined Brokerages
+st.subheader("Top 10 Brokerages (Buyer & Listing Combined)")
+if not combined_brokerage_deals.empty:
+    fig_combined = px.bar(
+        combined_brokerage_deals.head(10),
+        x="Brokerage",
+        y="Total Deals",
+        title="Top 10 Brokerages by Total Deals (Buyer & Listing)",
+        labels={"Total Deals": "Number of Transactions"},
+        text_auto=True
+    )
+    st.plotly_chart(fig_combined)
 else:
     st.warning("No data available for the selected filters.")
