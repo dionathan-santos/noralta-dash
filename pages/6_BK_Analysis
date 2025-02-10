@@ -1,0 +1,84 @@
+import streamlit as st
+import boto3
+import pandas as pd
+import plotly.express as px
+from datetime import datetime
+
+# Initialize DynamoDB resource
+dynamodb = boto3.resource('dynamodb', region_name='us-east-2')  # Adjust region if needed
+
+# Define the table name
+TABLE_NAME = "real_estate_listings"
+
+# Function to fetch data from DynamoDB
+def fetch_data():
+    """Retrieve listings from DynamoDB and convert to DataFrame."""
+    table = dynamodb.Table(TABLE_NAME)
+    response = table.scan()  # Retrieve all data (consider pagination for large datasets)
+    items = response.get('Items', [])
+
+    if not items:
+        return pd.DataFrame()  # Return empty DataFrame if no data
+
+    # Convert to DataFrame
+    df = pd.DataFrame(items)
+
+    # Convert date columns to datetime format
+    df["sold_date"] = pd.to_datetime(df["sold_date"], errors='coerce')
+    
+    return df
+
+# Load data
+df = fetch_data()
+
+# Streamlit UI
+st.title("Real Estate Listings Analysis")
+
+# Date filters
+st.sidebar.header("Filters")
+start_date = st.sidebar.date_input("Start Date", datetime(2023, 1, 1))
+end_date = st.sidebar.date_input("End Date", datetime(2024, 1, 1))
+
+# Dropdown filters (unique values from dataset)
+selected_cities = st.sidebar.multiselect("Select Cities", df["area_city"].dropna().unique())
+selected_communities = st.sidebar.multiselect("Select Communities", df["community"].dropna().unique())
+selected_building_types = st.sidebar.multiselect("Select Building Types", df["building_type"].dropna().unique())
+selected_firms = st.sidebar.multiselect("Select Office Firms", df["listing_firm"].dropna().unique())
+
+# Apply filters
+filtered_df = df[
+    (df["sold_date"] >= pd.to_datetime(start_date)) &
+    (df["sold_date"] <= pd.to_datetime(end_date))
+]
+
+if selected_cities:
+    filtered_df = filtered_df[filtered_df["area_city"].isin(selected_cities)]
+if selected_communities:
+    filtered_df = filtered_df[filtered_df["community"].isin(selected_communities)]
+if selected_building_types:
+    filtered_df = filtered_df[filtered_df["building_type"].isin(selected_building_types)]
+if selected_firms:
+    filtered_df = filtered_df[filtered_df["listing_firm"].isin(selected_firms)]
+
+# Group by brokerage and count the number of deals
+brokerage_counts = filtered_df["listing_firm"].value_counts().reset_index()
+brokerage_counts.columns = ["Brokerage", "Number of Deals"]
+
+# Display top 10 brokerages
+st.subheader("Top 10 Brokerages with Most Deals")
+if not brokerage_counts.empty:
+    fig = px.bar(
+        brokerage_counts.head(10),
+        x="Brokerage",
+        y="Number of Deals",
+        title="Top 10 Brokerages by Deals",
+        labels={"Number of Deals": "Number of Properties Sold"},
+        text_auto=True
+    )
+    st.plotly_chart(fig)
+else:
+    st.warning("No data available for the selected filters.")
+
+# Display filtered data (optional)
+st.subheader("Filtered Listings Data")
+st.dataframe(filtered_df)
