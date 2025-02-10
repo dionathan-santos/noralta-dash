@@ -223,11 +223,7 @@ else:
 
 
 
-import plotly.express as px
-import streamlit as st
-import pandas as pd
-
-# ---------------------------------------------
+############################################################## ---------------------------------------------
 # Visualization: Deals Per Agent by Brokers (Top 10 + Noralta)
 # ---------------------------------------------
 st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
@@ -285,11 +281,11 @@ else:
     st.stop()
 
 # ---------------------------------------------
-# Visualization: Deals Per Agent by Brokers (Top 10 + Noralta)
+# Filter Listings Within the Date Range
 # ---------------------------------------------
-st.header("Deals Per Agent by Brokers - Top 10 + Noralta")
+start_date = st.sidebar.date_input("Start Date", pd.Timestamp("2024-01-01"))
+end_date = st.sidebar.date_input("End Date", pd.Timestamp("2024-12-31"))
 
-# Filter listings within the date range
 filtered_listings = listings_data[
     (listings_data['sold_date'] >= pd.Timestamp(start_date)) &
     (listings_data['sold_date'] <= pd.Timestamp(end_date))
@@ -298,17 +294,21 @@ filtered_listings = listings_data[
 # Extract the month for each transaction
 filtered_listings['Month'] = filtered_listings['sold_date'].dt.to_period('M').dt.to_timestamp()
 
-# Count total deals (Listing + Buyer) per month per broker
-monthly_combined_deals = pd.Data
-
-Frame()
+# ---------------------------------------------
+# Count Total Deals (Listing + Buyer) per Month per Broker
+# ---------------------------------------------
+monthly_combined_deals = pd.DataFrame()
 months = filtered_listings['Month'].unique()
+
 for month in months:
     month_data = filtered_listings[filtered_listings['Month'] == month]
+    
+    # Ensure no missing values before counting
     month_deals = (
-        month_data['listing_firm'].value_counts() +
-        month_data['buyer_firm'].value_counts()
+        month_data['listing_firm'].dropna().value_counts() +
+        month_data['buyer_firm'].dropna().value_counts()
     ).reset_index()
+    
     month_deals.columns = ['Brokerage', 'Deals']
     month_deals['Month'] = month
     monthly_combined_deals = pd.concat([monthly_combined_deals, month_deals], ignore_index=True)
@@ -316,6 +316,10 @@ for month in months:
 # ---------------------------------------------
 # Merge Deals with Agent Counts by Brokerage & Month
 # ---------------------------------------------
+if monthly_combined_deals.empty or brokerage_data_melted.empty:
+    st.warning("No data available for merging.")
+    st.stop()
+
 merged_monthly = pd.merge(
     monthly_combined_deals,
     brokerage_data_melted,
@@ -324,7 +328,9 @@ merged_monthly = pd.merge(
     how='inner'
 )
 
+# ---------------------------------------------
 # Calculate "Deals Per Agent"
+# ---------------------------------------------
 merged_monthly['Deals Per Agent'] = merged_monthly['Deals'] / merged_monthly['Average Agents']
 merged_monthly = merged_monthly.drop(columns=['Broker'])  # Remove duplicate broker column
 
@@ -339,7 +345,9 @@ merged_monthly['Deals'] = merged_monthly['Deals'].fillna(0)
 merged_monthly['Average Agents'] = merged_monthly['Average Agents'].fillna(0)
 merged_monthly['Deals Per Agent'] = (merged_monthly['Deals'] / merged_monthly['Average Agents']).fillna(0)
 
+# ---------------------------------------------
 # Select Top 10 Brokerages by Total Deals
+# ---------------------------------------------
 top_brokers = merged_monthly.groupby('Brokerage')['Deals'].sum().nlargest(10).index
 filtered_monthly_top = merged_monthly[merged_monthly['Brokerage'].isin(top_brokers)]
 
