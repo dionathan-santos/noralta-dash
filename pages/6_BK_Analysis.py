@@ -222,4 +222,94 @@ else:
     st.warning("No data available for the selected filters.")
 
 
+###################  LOAD BROKERAGE AGENT DATA FROM DYNAMODB 
 
+@st.cache_data
+def get_brokerage_data():
+    """Fetch brokerage agent count data from DynamoDB and convert to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("brokerage")
+
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        return pd.DataFrame(items)
+
+    except Exception as e:
+        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        return pd.DataFrame()
+
+# Load agent count data
+brokerage_agents = get_brokerage_data()
+
+# Ensure 'brokerage_agents' has valid data
+if brokerage_agents.empty:
+    st.error("No agent count data available!")
+    st.stop()
+
+# Melt brokerage data (as agent counts are stored by month columns)
+brokerage_agents = brokerage_agents.melt(id_vars=["Broker"], var_name="Month", value_name="Agent Count")
+
+# Convert 'Month' to datetime format (YYYY-MM)
+brokerage_agents["Month"] = pd.to_datetime(brokerage_agents["Month"], errors="coerce").dt.to_period("M")
+
+###################  PREPARE DAILY DEALS PER BROKERAGE ####################
+
+# Group deals by day and brokerage
+daily_deals = filtered_data.groupby(["sold_date", "listing_firm"]).size().reset_index(name="Total Deals")
+
+# Convert 'sold_date' to datetime format (YYYY-MM-DD)
+daily_deals["sold_date"] = pd.to_datetime(daily_deals["sold_date"])
+
+# Extract year-month to match with agent count data
+daily_deals["Month"] = daily_deals["sold_date"].dt.to_period("M")
+
+# Merge daily deals with agent count data (matching by brokerage and month)
+daily_deals = daily_deals.merge(
+    brokerage_agents,
+    left_on=["listing_firm", "Month"],
+    right_on=["Broker", "Month"],
+    how="left"
+)
+
+# Drop rows with missing agent count (ensures only valid comparisons)
+daily_deals = daily_deals.dropna(subset=["Agent Count"])
+
+# Calculate Deals Per Agent
+daily_deals["Deals Per Agent"] = daily_deals["Total Deals"] / daily_deals["Agent Count"]
+
+###################  PLOT LINE CHART: DEALS PER AGENT OVER TIME ####################
+
+st.subheader("Daily Deals Per Agent for Top 10 Brokerages")
+
+# Filter for only the top 10 brokerages
+top_brokerages = combined_deals["Brokerage"].tolist()
+daily_deals_top10 = daily_deals[daily_deals["listing_firm"].isin(top_brokerages)]
+
+# Generate the line chart
+fig_line = px.line(
+    daily_deals_top10,
+    x="sold_date",
+    y="Deals Per Agent",
+    color="listing_firm",
+    title="Daily Deals Per Agent for Top 10 Brokerages",
+    labels={"sold_date": "Date", "Deals Per Agent": "Deals Per Agent", "listing_firm": "Brokerage"},
+    markers=True
+)
+
+st.plotly_chart(fig_line)
