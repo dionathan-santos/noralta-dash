@@ -29,11 +29,16 @@ def run_athena_query(query, database, output_location, aws_key, aws_secret, regi
         aws_secret_access_key=aws_secret,
         region_name=region
     )
-    response = client.start_query_execution(
-        QueryString=query,
-        QueryExecutionContext={'Database': database},
-        ResultConfiguration={'OutputLocation': output_location}
-    )
+    try:
+        response = client.start_query_execution(
+            QueryString=query,
+            QueryExecutionContext={'Database': database},
+            ResultConfiguration={'OutputLocation': output_location}
+        )
+    except Exception as e:
+        st.error(f"Error starting Athena query: {e}")
+        return pd.DataFrame()  # Return an empty DataFrame on failure
+
     execution_id = response['QueryExecutionId']
 
     # Wait until the query succeeds
