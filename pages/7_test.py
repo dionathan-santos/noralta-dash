@@ -32,25 +32,33 @@ dataframes = {}
 
 # Function to scan a DynamoDB table and return its items
 def scan_table(table_name):
-    table = dynamodb.Table(table_name)
-    response = table.scan()
-    data = response.get('Items', [])
-    
-    # Continue scanning if there are more items
-    while 'LastEvaluatedKey' in response:
-        response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
-        data.extend(response.get('Items', []))
-    return data
+    try:
+        table = dynamodb.Table(table_name)
+        response = table.scan()
+        data = response.get('Items', [])
+        
+        # Continue scanning if there are more items
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            data.extend(response.get('Items', []))
+            
+        return data
+    except Exception as e:
+        st.error(f"Erro ao escanear a tabela '{table_name}': {e}")
+        return []
 
 # Create a DataFrame for each table and store them in the dictionary
 for table_name in table_names:
     data = scan_table(table_name)
-    df = pd.DataFrame(data)
-    dataframes[table_name] = df
-    st.write(f"Dataframe criado para a tabela: {table_name}")
-    st.write(df.head())  # Display the first few rows of the DataFrame
+    if data:
+        df = pd.DataFrame(data)
+        dataframes[table_name] = df
+        st.write(f"Dataframe criado para a tabela: {table_name}")
+        st.write(df.head())  # Display the first few rows of the DataFrame
+    else:
+        st.write(f"Não foi possível criar o dataframe para a tabela: {table_name}")
 
-# Assign the DataFrames to individual variables
+# Assign the DataFrames to individual variables (defaulting to empty DataFrames if missing)
 brokerage_df = dataframes.get('brokerage', pd.DataFrame())
 real_estate_listings_df = dataframes.get('real_estate_listings', pd.DataFrame())
 
