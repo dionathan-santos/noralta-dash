@@ -382,7 +382,7 @@ top_monthly_deals = all_monthly_deals[all_monthly_deals["Firm"].isin(top_firms)]
 
 # Load the brokerage data (which contains the number of active agents per firm and month)
 brokerage_data = get_brokerage_data()
-top_brokerage_data = brokerage_data[brokerage_data["Firm"].isin(top_firms)]
+top_brokerage_data = brokerage_data[brokerage_data["firm"].isin(top_firms)]
 
 # Merge the monthly deals with the brokerage data on both Firm and Month.
 merged_data = pd.merge(top_monthly_deals, top_brokerage_data, on=["Firm", "Month"], how="left")
