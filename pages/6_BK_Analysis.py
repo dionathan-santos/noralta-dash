@@ -197,8 +197,16 @@ else:
     # Both listing and buyer deals are included.
     # ------------------------------------------------------------
     
-# ----- Cumulative Deals per Agent Over Time (Daily) -----
-# Combine listing and buyer deals and add a deal_count column
+# Process brokerage data to create brokerage_monthly for monthly agent counts
+brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce").dt.normalize()
+brokerage_data = brokerage_data[
+    (brokerage_data["Date"] >= pd.to_datetime(start_date)) &
+    (brokerage_data["Date"] <= pd.to_datetime(end_date))
+]
+brokerage_data["month"] = brokerage_data["Date"].dt.to_period("M").apply(lambda r: r.to_timestamp(how='end'))
+brokerage_monthly = brokerage_data.rename(columns={"firm": "Brokerage", "Value": "Agents"})
+
+# Combine listing and buyer deals
 listing_deals_df = filtered_data[["sold_date", "listing_firm"]].copy()
 listing_deals_df = listing_deals_df.rename(columns={"listing_firm": "Brokerage"})
 listing_deals_df["deal_count"] = 1
@@ -208,42 +216,74 @@ buyer_deals_df = buyer_deals_df.rename(columns={"buyer_firm": "Brokerage"})
 buyer_deals_df["deal_count"] = 1
 
 all_deals = pd.concat([listing_deals_df, buyer_deals_df])
-
-# Group daily deals per firm
 daily_deals = all_deals.groupby(["Brokerage", "sold_date"], as_index=False)["deal_count"].sum()
 
-# Determine the top 10 firms and include highlighted firm
+# Determine top firms and include highlight firm
 total_deals = all_deals.groupby("Brokerage")["deal_count"].sum().reset_index().sort_values("deal_count", ascending=False)
 top10_firms = total_deals.head(10)["Brokerage"].tolist()
 highlight_firm = "Royal LePage Noralta Real Estate"
 if highlight_firm not in top10_firms:
     top10_firms.append(highlight_firm)
 
-# Create full date range
-date_range = pd.date_range(filtered_data["sold_date"].min(), filtered_data["sold_date"].max(), freq="D")
+# ----- Updated Cumulative Deals per Agent Over Time (Daily) -----
+# Process brokerage data for monthly agent counts
+brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce")
+brokerage_data = brokerage_data[(brokerage_data["Date"] >= pd.to_datetime(start_date)) & 
+                                (brokerage_data["Date"] <= pd.to_datetime(end_date))]
+brokerage_data["month"] = brokerage_data["Date"].dt.to_period("M").apply(lambda r: r.to_timestamp(how="end"))
+brokerage_data["Agents"] = pd.to_numeric(brokerage_data["Value"], errors="coerce")
 
-# Reindex daily deals for each top firm
+# Process deals data
+listing_deals_df = filtered_data[["sold_date", "listing_firm"]].copy()
+listing_deals_df.rename(columns={"listing_firm": "firm"}, inplace=True)
+listing_deals_df["deal_count"] = 1
+
+buyer_deals_df = filtered_data[["sold_date", "buyer_firm"]].copy()
+buyer_deals_df.rename(columns={"buyer_firm": "firm"}, inplace=True)
+buyer_deals_df["deal_count"] = 1
+
+all_deals = pd.concat([listing_deals_df, buyer_deals_df])
+all_deals["sold_date"] = pd.to_datetime(all_deals["sold_date"], errors="coerce").dt.normalize()
+
+daily_deals = all_deals.groupby(["firm", "sold_date"], as_index=False)["deal_count"].sum()
+
+total_deals = all_deals.groupby("firm", as_index=False)["deal_count"].sum().sort_values("deal_count", ascending=False)
+top10_firms = total_deals.head(10)["firm"].tolist()
+highlight_firm = "Royal LePage Noralta Real Estate"
+if highlight_firm not in top10_firms:
+    top10_firms.append(highlight_firm)
+
+date_range = pd.date_range(start=filtered_data["sold_date"].min(), end=filtered_data["sold_date"].max(), freq="D")
+
 cum_list = []
-for firm in top10_firms:
-    firm_data = daily_deals[daily_deals["Brokerage"] == firm].set_index("sold_date")
+for f in top10_firms:
+    firm_data = daily_deals[daily_deals["firm"] == f].set_index("sold_date")
     firm_data = firm_data.reindex(date_range, fill_value=0).reset_index().rename(columns={"index": "sold_date"})
-    firm_data["Brokerage"] = firm
+    firm_data["firm"] = f
     firm_data["cumulative_deals"] = firm_data["deal_count"].cumsum()
+
+    firm_agents = brokerage_data[brokerage_data["firm"] == f].sort_values("month")
+    agents_daily = pd.DataFrame({"sold_date": date_range})
+    agents_daily = pd.merge_asof(agents_daily,
+                                 firm_agents[["month", "Agents"]].sort_values("month"),
+                                 left_on="sold_date",
+                                 right_on="month",
+                                 direction="backward")
+    agents_daily["Agents"].fillna(1, inplace=True)
+
+    firm_data = firm_data.merge(agents_daily[["sold_date", "Agents"]], on="sold_date", how="left")
+    firm_data["deals_per_agent"] = firm_data["cumulative_deals"] / firm_data["Agents"]
     cum_list.append(firm_data)
+
 cum_deals_df = pd.concat(cum_list, ignore_index=True)
 
-# Calculate deals per agent using monthly agent counts
-cum_deals_df = cum_deals_df.merge(agents_avg, on="Brokerage", how="left")
-cum_deals_df["deals_per_agent"] = cum_deals_df["cumulative_deals"] / cum_deals_df["Avg_Agents"]
-
-# Plot cumulative deals per agent
 fig_cum = px.line(
     cum_deals_df,
-    x="sold_date", 
+    x="sold_date",
     y="deals_per_agent",
-    color="Brokerage",
+    color="firm",
     title="Cumulative Deals per Agent Over Time (Top 10 Firms + Noralta)",
-    labels={"sold_date": "Sold Date", "deals_per_agent": "Deals per Agent", "Brokerage": "Firm"}
+    labels={"sold_date": "Sold Date", "deals_per_agent": "Deals per Agent", "firm": "Firm"}
 )
 fig_cum.update_xaxes(tickformat="%Y-%m-%d")
 st.plotly_chart(fig_cum)
@@ -351,55 +391,45 @@ else:
     
 # ----- Updated Monthly Deals per Agent with Proper Monthly Agent Data -----
 
-# Create monthly deals by first setting the month as the month-end date 
-all_deals["month"] = pd.to_datetime(all_deals["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how='end'))
+# ----- Updated Monthly Deals per Agent with Proper Monthly Agent Data -----
+all_deals["month"] = pd.to_datetime(all_deals["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how="end"))
+monthly_deals = all_deals.groupby(["firm", "month"], as_index=False)["deal_count"].sum()
 
-# Group monthly deals per firm
-monthly_deals = all_deals.groupby(["Brokerage", "month"], as_index=False)["deal_count"].sum()
-
-# Determine the top 10 firms by total deals and ensure the highlighted firm is included
-total_deals = all_deals.groupby("Brokerage")["deal_count"].sum().reset_index().sort_values("deal_count", ascending=False)
-top10_firms = total_deals.head(10)["Brokerage"].tolist()
+total_deals = all_deals.groupby("firm", as_index=False)["deal_count"].sum().sort_values("deal_count", ascending=False)
+top10_firms = total_deals.head(10)["firm"].tolist()
 if highlight_firm not in top10_firms:
     top10_firms.append(highlight_firm)
 
-# Create a full monthly date range (using month-end dates) for the filtered period
-min_month = pd.to_datetime(filtered_data["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how='end')).min()
-max_month = pd.to_datetime(filtered_data["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how='end')).max()
+min_month = pd.to_datetime(filtered_data["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how="end")).min()
+max_month = pd.to_datetime(filtered_data["sold_date"]).dt.to_period("M").apply(lambda r: r.to_timestamp(how="end")).max()
 month_range = pd.date_range(start=min_month, end=max_month, freq="M")
 
 monthly_list = []
-for firm in top10_firms:
-    # Reindex the firm's monthly deals to include every month in the full range; fill missing months with 0
-    firm_monthly = monthly_deals[monthly_deals["Brokerage"]==firm].set_index("month").reindex(month_range, fill_value=0).reset_index()
-    firm_monthly.rename(columns={"index": "month"}, inplace=True)
-    
-    # For this firm, get its monthly brokerage data (which already uses month-end dates)
-    firm_agents = brokerage_monthly[brokerage_monthly["Brokerage"]==firm].sort_values("month")
-    # Create a DataFrame for the full month range
+for f in top10_firms:
+    firm_monthly = monthly_deals[monthly_deals["firm"] == f].set_index("month").reindex(month_range, fill_value=0).reset_index().rename(columns={"index": "month"})
+    firm_monthly["firm"] = f
+
+    firm_agents = brokerage_data[brokerage_data["firm"] == f].sort_values("month")
     agents_monthly = pd.DataFrame({"month": month_range})
-    # Merge asof to fill in the agent count for each month using the most recent available data
-    agents_monthly = pd.merge_asof(agents_monthly, 
-                                   firm_agents[["month", "Agents"]].sort_values("month"), 
-                                   on="month", direction="backward")
+    agents_monthly = pd.merge_asof(agents_monthly,
+                                   firm_agents[["month", "Agents"]].sort_values("month"),
+                                   on="month",
+                                   direction="backward")
     agents_monthly["Agents"].fillna(1, inplace=True)
-    
-    # Merge the firm's monthly deals with its agent count and compute deals per agent
-    firm_monthly = firm_monthly.merge(agents_monthly, on="month", how="left")
+
+    firm_monthly = firm_monthly.merge(agents_monthly[["month", "Agents"]], on="month", how="left")
     firm_monthly["deals_per_agent"] = firm_monthly["deal_count"] / firm_monthly["Agents"]
-    firm_monthly["Brokerage"] = firm
     monthly_list.append(firm_monthly)
 
 monthly_deals_df = pd.concat(monthly_list, ignore_index=True)
 
-# Plot monthly deals
 fig_month = px.line(
     monthly_deals_df,
     x="month",
     y="deals_per_agent",
-    color="Brokerage",
+    color="firm",
     title="Monthly Deals per Agent (Top 10 Firms + Noralta)",
-    labels={"month": "Month", "deals_per_agent": "Deals per Agent", "Brokerage": "Firm"}
+    labels={"month": "Month", "deals_per_agent": "Deals per Agent", "firm": "Firm"}
 )
 fig_month.update_xaxes(tickformat="%Y-%m-%d")
 st.plotly_chart(fig_month)
