@@ -304,20 +304,48 @@ else:
 
 # ----- NEW CODE: Add brokerage data function and table for Avg Deals per Agent -----
 
-# Function to load brokerage data from a CSV file.
+# Function to load brokerage data from DynamoDB
 @st.cache_data
 def get_brokerage_data():
+    """Fetch brokerage data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
     try:
-        # Load brokerage data; CSV should have columns: firm, value (active agents), and date (last day of month).
-        brokerage_df = pd.read_csv("brokerage.csv", parse_dates=["date"])
-        # Rename columns to standard names:
-        # "firm" becomes "Firm", "value" becomes "Active Agents", and "date" becomes "Month"
-        brokerage_df = brokerage_df.rename(columns={"firm": "Firm", "value": "Active Agents", "date": "Month"})
-        # Convert the Month column to the first day of each month so it aligns with our deals data.
-        brokerage_df["Month"] = brokerage_df["Month"].dt.to_period("M").dt.to_timestamp()
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("brokerage_agents")
+
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        brokerage_df = pd.DataFrame(items)
+        
+        # Rename columns to match expected format
+        brokerage_df = brokerage_df.rename(columns={
+            "brokerage_name": "Firm",
+            "agent_count": "Active Agents",
+            "report_date": "Month"
+        })
+        
+        # Convert Month to datetime and Active Agents to numeric
+        brokerage_df["Month"] = pd.to_datetime(brokerage_df["Month"]).dt.to_period("M").dt.to_timestamp()
+        brokerage_df["Active Agents"] = pd.to_numeric(brokerage_df["Active Agents"])
+        
         return brokerage_df
+
     except Exception as e:
-        st.error(f"Failed to load brokerage data: {str(e)}")
+        st.error(f"Failed to fetch brokerage data from DynamoDB: {str(e)}")
         return pd.DataFrame()
 
 # ----- Calculate Monthly Deals for Top 10 Firms and Merge with Brokerage Data -----
