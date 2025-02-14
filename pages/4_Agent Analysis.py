@@ -24,11 +24,9 @@ def get_aws_credentials():
 
 # Function to fetch data from DynamoDB
 @st.cache_data
-def get_dynamodb_data():
-    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+def fetch_dynamodb_data(table_name):
+    """Generic function to fetch data from any DynamoDB table"""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
-    if not aws_access_key or not aws_secret_key:
-        return pd.DataFrame()
 
     try:
         dynamodb = boto3.resource(
@@ -37,28 +35,28 @@ def get_dynamodb_data():
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        table = dynamodb.Table("real_estate_listings")  # Change to your actual table name
+        table = dynamodb.Table(table_name)
+        response = table.scan()
+        items = response['Items']
 
-        items, last_evaluated_key = [], None
-        while True:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-            if not last_evaluated_key:
-                break
+        while 'LastEvaluatedKey' in response:
+            response = table.scan(ExclusiveStartKey=response['LastEvaluatedKey'])
+            items.extend(response['Items'])
 
         return pd.DataFrame(items)
 
     except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        st.error(f"Error accessing {table_name}: {str(e)}")
         return pd.DataFrame()
 
-# Load data from AWS DynamoDB
-listings_data = get_dynamodb_data()
 
-# Ensure data is loaded
-if listings_data.empty:
-    st.error("No data available to display!")
+# Load data from both tables
+listings_data = fetch_dynamodb_data("real_estate_listings")
+brokerage_data = fetch_dynamodb_data("brokerage")
+
+# Check both datasets
+if listings_data.empty or brokerage_data.empty:
+    st.error("Missing required data!")
     st.stop()
 
 # Convert 'sold_date' to datetime format
