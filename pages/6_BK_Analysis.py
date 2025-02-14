@@ -66,6 +66,7 @@ if listings_data.empty:
 
 # Convert 'sold_date' to datetime format
 listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce").dt.normalize()
+listings_data = listings_data.dropna(subset=["sold_date"])
 
 # Sidebar filters
 st.sidebar.header("Filters")
