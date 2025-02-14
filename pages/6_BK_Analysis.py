@@ -294,9 +294,24 @@ else:
         (brokerage_data["Date"] <= pd.to_datetime(end_date))
     ]
     
-    # Compute the average number of agents per firm (assuming "Value" holds the agent count)
+    # Process brokerage data and compute the average agents per firm
+    brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce").dt.normalize()
+    brokerage_data = brokerage_data[
+        (brokerage_data["Date"] >= pd.to_datetime(start_date)) &
+        (brokerage_data["Date"] <= pd.to_datetime(end_date))
+    ]
     agents_avg = brokerage_data.groupby("firm")["Value"].mean().reset_index()
     agents_avg.columns = ["Brokerage", "Avg_Agents"]
+
+    # Ensure the highlighted firm has an Avg_Agents value even when its data is missing.
+    highlight_firm = "Royal LePage Noralta Real Estate"
+    if highlight_firm not in agents_avg["Brokerage"].values:
+        # Assign a default average agents value; update default_agents as needed.
+        default_agents = 1  # Set to a sensible default if real data is missing.
+        agents_avg = pd.concat(
+            [agents_avg, pd.DataFrame({"Brokerage": [highlight_firm], "Avg_Agents": [default_agents]})],
+            ignore_index=True
+        )
 
     # ------------------------------------------------------------
     # Process listings data to get monthly deals per firm.
