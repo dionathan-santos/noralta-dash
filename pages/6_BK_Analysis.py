@@ -56,6 +56,77 @@ def get_dynamodb_data():
         st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
         return pd.DataFrame()
 
+# Function to load brokerage data from DynamoDB
+@st.cache_data
+def get_brokerage_data():
+    """Fetch brokerage data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("brokerage")
+
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        brokerage_df = pd.DataFrame(items)
+        
+        # Rename columns to match expected format
+        brokerage_df = brokerage_df.rename(columns={
+            "firm": "Firm",
+            "Date": "Month",
+            "Value": "Active Agents"
+        })
+        
+        # Convert Month to datetime and Active Agents to numeric
+        brokerage_df["Month"] = pd.to_datetime(brokerage_df["Month"]).dt.to_period("M").dt.to_timestamp()
+        brokerage_df["Active Agents"] = pd.to_numeric(brokerage_df["Active Agents"])
+        
+        return brokerage_df
+
+    except Exception as e:
+        st.error(f"Failed to fetch brokerage data from DynamoDB: {str(e)}")
+        return pd.DataFrame()
+    """Fetch data from DynamoDB and convert it to a Pandas DataFrame."""
+    aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
+    if not aws_access_key or not aws_secret_key:
+        return pd.DataFrame()
+
+    try:
+        dynamodb = boto3.resource(
+            "dynamodb",
+            aws_access_key_id=aws_access_key,
+            aws_secret_access_key=aws_secret_key,
+            region_name=aws_region
+        )
+        table = dynamodb.Table("real_estate_listings")
+
+        items, last_evaluated_key = [], None
+        while True:
+            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+            items.extend(response.get("Items", []))
+            last_evaluated_key = response.get("LastEvaluatedKey")
+            if not last_evaluated_key:
+                break
+
+        return pd.DataFrame(items)
+
+    except Exception as e:
+        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        return pd.DataFrame()
+
 # Load data from AWS DynamoDB
 listings_data = get_dynamodb_data()
 
@@ -110,6 +181,53 @@ st.subheader("Brokerage Performance Summary")
 col1, col2 = st.columns(2)
 col1.metric("Total Deals in Period", filtered_data.shape[0])
 col2.metric("Total Brokerages Involved", brokerage_deals.shape[0])
+
+# Calculate Monthly Deals for Top 10 Firms and Merge with Brokerage Data
+market_data = filtered_data.copy()
+market_data["Month"] = pd.to_datetime(market_data["sold_date"]).dt.to_period("M").dt.to_timestamp()
+
+# Calculate monthly deals from the listing side
+monthly_deals_listing = (
+    market_data.groupby(["listing_firm", "Month"]).size().reset_index(name="Deals")
+)
+monthly_deals_listing = monthly_deals_listing.rename(columns={"listing_firm": "Firm"})
+
+# Calculate monthly deals from the buyer side
+monthly_deals_buyer = (
+    market_data.groupby(["buyer_firm", "Month"]).size().reset_index(name="Deals")
+)
+monthly_deals_buyer = monthly_deals_buyer.rename(columns={"buyer_firm": "Firm"})
+
+# Combine both listing and buyer deals
+all_monthly_deals = pd.concat([monthly_deals_listing, monthly_deals_buyer], axis=0)
+all_monthly_deals = all_monthly_deals.groupby(["Firm", "Month"])["Deals"].sum().reset_index()
+
+# Determine the top 10 firms overall
+overall_deals = all_monthly_deals.groupby("Firm")["Deals"].sum().reset_index()
+top_firms = overall_deals.sort_values("Deals", ascending=False).head(10)["Firm"].tolist()
+
+# Filter for top 10 firms
+top_monthly_deals = all_monthly_deals[all_monthly_deals["Firm"].isin(top_firms)]
+
+# Load and filter brokerage data
+brokerage_data = get_brokerage_data()
+top_brokerage_data = brokerage_data[brokerage_data["Firm"].isin(top_firms)]
+
+# Merge monthly deals with brokerage data
+merged_data = pd.merge(top_monthly_deals, top_brokerage_data, on=["Firm", "Month"], how="left")
+
+# Compute average deals per agent
+merged_data["Avg Deals per Agent"] = merged_data.apply(
+    lambda row: round(row["Deals"] / row["Active Agents"], 2) if row["Active Agents"] and row["Active Agents"] > 0 else 0,
+    axis=1
+)
+
+# Prepare final table
+final_table = merged_data[["Firm", "Month", "Avg Deals per Agent", "Active Agents"]].sort_values(["Firm", "Month"])
+
+# Display the table
+st.subheader("Monthly Average Deals Per Agent & Active Agents for Top 10 Firms")
+st.dataframe(final_table)
 
 
 
