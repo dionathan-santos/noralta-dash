@@ -371,6 +371,7 @@ else:
             "Brokerage": "Firm"
         }
     )
+    fig_line.update_xaxes(tickformat="%Y-%m-%d")
     
     st.plotly_chart(fig_line)
 
@@ -445,6 +446,7 @@ fig_market_share.update_layout(
     legend_title="Firm",
     margin=dict(b=120)
 )
+fig_market_share.update_xaxes(tickformat="%Y-%m-%d")
 st.plotly_chart(fig_market_share, use_container_width=True)
 
 
