@@ -12,20 +12,20 @@ st.title("Brokerage Performance Analysis")
 def get_aws_credentials():
     """Retrieves AWS credentials from Streamlit secrets."""
     try:
-        aws_secrets = st.secrets["aws"]  # Get the entire 'aws' dictionary
+        aws_secrets = st.secrets["aws"]
         return (
             aws_secrets["AWS_ACCESS_KEY_ID"],
             aws_secrets["AWS_SECRET_ACCESS_KEY"],
-            aws_secrets.get("AWS_REGION", "us-east-2")  # Default to us-east-2 if not set
+            aws_secrets.get("AWS_REGION", "us-east-2")
         )
     except KeyError:
-        st.error("AWS credentials are missing. Check Streamlit secrets configuration.")
+        st.error("AWS credentials missing. Check Streamlit secrets.")
         return None, None, None
 
-# Function to fetch real estate listings data from DynamoDB
+# Function to fetch real estate listings data
 @st.cache_data
 def get_dynamodb_data():
-    """Fetch listings data from DynamoDB and convert it to a Pandas DataFrame."""
+    """Fetch data from real_estate_listings table."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
         return pd.DataFrame()
@@ -38,26 +38,25 @@ def get_dynamodb_data():
             region_name=aws_region
         )
         table = dynamodb.Table("real_estate_listings")
-        items, last_evaluated_key = [], None
-        while True:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
+
+        items = []
+        response = table.scan()
+        items.extend(response.get("Items", []))
+
+        while "LastEvaluatedKey" in response:
+            response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
             items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-            if not last_evaluated_key:
-                break
+
         return pd.DataFrame(items)
+
     except Exception as e:
-        st.error(f"Failed to fetch data from DynamoDB: {str(e)}")
+        st.error(f"DynamoDB error: {str(e)}")
         return pd.DataFrame()
 
-# Function to load brokerage data from DynamoDB
+# Function to fetch brokerage data
 @st.cache_data
 def get_brokerage_data():
-    """
-    Fetch brokerage data from DynamoDB and convert it to a Pandas DataFrame.
-    The columns are renamed to produce: "Firm", "Month", and "Active Agents".
-    Adjust the key names if your DynamoDB schema is different.
-    """
+    """Fetch data from brokerage table."""
     aws_access_key, aws_secret_key, aws_region = get_aws_credentials()
     if not aws_access_key or not aws_secret_key:
         return pd.DataFrame()
@@ -70,38 +69,53 @@ def get_brokerage_data():
             region_name=aws_region
         )
         table = dynamodb.Table("brokerage")
-        items, last_evaluated_key = [], None
-        while True:
-            response = table.scan(ExclusiveStartKey=last_evaluated_key) if last_evaluated_key else table.scan()
-            items.extend(response.get("Items", []))
-            last_evaluated_key = response.get("LastEvaluatedKey")
-            if not last_evaluated_key:
-                break
 
+        items = []
+        response = table.scan()
+        items.extend(response.get("Items", []))
+
+        while "LastEvaluatedKey" in response:
+            response = table.scan(ExclusiveStartKey=response["LastEvaluatedKey"])
+            items.extend(response.get("Items", []))
+
+        # Transform data
         brokerage_df = pd.DataFrame(items)
-        # Map DynamoDB column names to expected names.
-        # For example, if your table returns keys 'brokerage_name', 'agent_count', and 'report_date':
+
+        # Validate required columns
+        required_columns = {'brokerage_name', 'report_date', 'agent_count'}
+        if not required_columns.issubset(brokerage_df.columns):
+            missing = required_columns - set(brokerage_df.columns)
+            st.error(f"Missing columns in brokerage data: {missing}")
+            return pd.DataFrame()
+
+        # Rename and transform
         brokerage_df = brokerage_df.rename(columns={
             "brokerage_name": "Firm",
             "report_date": "Month",
             "agent_count": "Active Agents"
         })
 
-        # If your table uses different key names (e.g. "firm", "Date", "Value"), uncomment the following block:
-        # brokerage_df = brokerage_df.rename(columns={
-        #     "firm": "Firm",
-        #     "Date": "Month",
-        #     "Value": "Active Agents"
-        # })
-
-        # Convert Month to datetime (first day of month) and Active Agents to numeric
         brokerage_df["Month"] = pd.to_datetime(brokerage_df["Month"]).dt.to_period("M").dt.to_timestamp()
         brokerage_df["Active Agents"] = pd.to_numeric(brokerage_df["Active Agents"], errors="coerce")
-        return brokerage_df
+
+        return brokerage_df.dropna(subset=["Firm", "Month"])
+
     except Exception as e:
-        st.error(f"Failed to fetch brokerage data from DynamoDB: {str(e)}")
+        st.error(f"Brokerage data error: {str(e)}")
         return pd.DataFrame()
 
+# Load data
+listings_data = get_dynamodb_data()
+brokerage_data = get_brokerage_data()
+
+# Data validation
+if listings_data.empty or brokerage_data.empty:
+    st.error("Failed to load required data")
+    st.stop()
+
+# Data processing for listings
+listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce").dt.normalize()
+listings_data = listings_data.dropna(subset=["sold_date", "listing_firm", "buyer_firm"])
 
 # -------------------- Load and Preprocess Listings Data --------------------
 
