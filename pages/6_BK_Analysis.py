@@ -299,4 +299,76 @@ else:
 
 
 
+########################################### TABLE DEALS PER AGENT
 
+
+# ----- NEW CODE: Add brokerage data function and table for Avg Deals per Agent -----
+
+# Function to load brokerage data from a CSV file.
+@st.cache_data
+def get_brokerage_data():
+    try:
+        # Load brokerage data; CSV should have columns: firm, value (active agents), and date (last day of month).
+        brokerage_df = pd.read_csv("brokerage.csv", parse_dates=["date"])
+        # Rename columns to standard names:
+        # "firm" becomes "Firm", "value" becomes "Active Agents", and "date" becomes "Month"
+        brokerage_df = brokerage_df.rename(columns={"firm": "Firm", "value": "Active Agents", "date": "Month"})
+        # Convert the Month column to the first day of each month so it aligns with our deals data.
+        brokerage_df["Month"] = brokerage_df["Month"].dt.to_period("M").dt.to_timestamp()
+        return brokerage_df
+    except Exception as e:
+        st.error(f"Failed to load brokerage data: {str(e)}")
+        return pd.DataFrame()
+
+# ----- Calculate Monthly Deals for Top 10 Firms and Merge with Brokerage Data -----
+
+# Create a copy of the filtered data and add a Month column.
+# (Note: filtered_data is already loaded and processed earlier in the code.)
+market_data = filtered_data.copy()
+# Convert sold_date to the first day of the month (to align with brokerage data).
+market_data["Month"] = pd.to_datetime(market_data["sold_date"]).dt.to_period("M").dt.to_timestamp()
+
+# Calculate monthly deals from the listing side.
+monthly_deals_listing = (
+    market_data.groupby(["listing_firm", "Month"]).size().reset_index(name="Deals")
+)
+# Rename the column for consistency.
+monthly_deals_listing = monthly_deals_listing.rename(columns={"listing_firm": "Firm"})
+
+# Calculate monthly deals from the buyer side.
+monthly_deals_buyer = (
+    market_data.groupby(["buyer_firm", "Month"]).size().reset_index(name="Deals")
+)
+monthly_deals_buyer = monthly_deals_buyer.rename(columns={"buyer_firm": "Firm"})
+
+# Combine both listing and buyer deals.
+all_monthly_deals = pd.concat([monthly_deals_listing, monthly_deals_buyer], axis=0)
+all_monthly_deals = all_monthly_deals.groupby(["Firm", "Month"])["Deals"].sum().reset_index()
+
+# Determine the top 10 firms overall (by total deals over the period)
+overall_deals = all_monthly_deals.groupby("Firm")["Deals"].sum().reset_index()
+top_firms = overall_deals.sort_values("Deals", ascending=False).head(10)["Firm"].tolist()
+
+# Filter the monthly deals data to only include rows for the top 10 firms.
+top_monthly_deals = all_monthly_deals[all_monthly_deals["Firm"].isin(top_firms)]
+
+# Load the brokerage data (which contains the number of active agents per firm and month)
+brokerage_data = get_brokerage_data()
+top_brokerage_data = brokerage_data[brokerage_data["Firm"].isin(top_firms)]
+
+# Merge the monthly deals with the brokerage data on both Firm and Month.
+merged_data = pd.merge(top_monthly_deals, top_brokerage_data, on=["Firm", "Month"], how="left")
+
+# Compute the average deals per agent.
+# Use a lambda function that divides the total deals by the active agents (if active agents > 0).
+merged_data["Avg Deals per Agent"] = merged_data.apply(
+    lambda row: round(row["Deals"] / row["Active Agents"], 2) if row["Active Agents"] and row["Active Agents"] > 0 else 0,
+    axis=1
+)
+
+# Prepare the final table with only the desired columns and sort by Firm and Month.
+final_table = merged_data[["Firm", "Month", "Avg Deals per Agent", "Active Agents"]].sort_values(["Firm", "Month"])
+
+# Display the final table in the Streamlit app.
+st.subheader("Monthly Average Deals Per Agent & Active Agents for Top 10 Firms")
+st.dataframe(final_table)
