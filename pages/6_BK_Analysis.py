@@ -167,12 +167,18 @@ else:
         (brokerage_data["Date"] <= pd.to_datetime(end_date))
     ]
     
-    # Process brokerage data and compute the average agents per firm
+    # Process brokerage data to create brokerage_monthly for monthly agent counts
     brokerage_data["Date"] = pd.to_datetime(brokerage_data["Date"], errors="coerce").dt.normalize()
     brokerage_data = brokerage_data[
         (brokerage_data["Date"] >= pd.to_datetime(start_date)) &
         (brokerage_data["Date"] <= pd.to_datetime(end_date))
     ]
+    # Create a 'month' column using the month-end date (as your data always is at month-end)
+    brokerage_data["month"] = brokerage_data["Date"].dt.to_period("M").apply(lambda r: r.to_timestamp(how='end'))
+    # Rename columns to match later usage
+    brokerage_monthly = brokerage_data.rename(columns={"firm": "Brokerage", "Value": "Agents"})
+
+    # Compute average agents per firm
     agents_avg = brokerage_data.groupby("firm")["Value"].mean().reset_index()
     agents_avg.columns = ["Brokerage", "Avg_Agents"]
 
