@@ -319,7 +319,7 @@ def get_brokerage_data():
             aws_secret_access_key=aws_secret_key,
             region_name=aws_region
         )
-        table = dynamodb.Table("brokerage_agents")
+        table = dynamodb.Table("brokerage")
 
         items, last_evaluated_key = [], None
         while True:
@@ -333,7 +333,7 @@ def get_brokerage_data():
         
         # Rename columns to match expected format
         brokerage_df = brokerage_df.rename(columns={
-            "brokerage_name": "Firm",
+            "brokerage_name": "firm",
             "agent_count": "Active Agents",
             "report_date": "Month"
         })
