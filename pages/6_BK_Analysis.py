@@ -64,8 +64,10 @@ if listings_data.empty:
     st.error("No data available to display!")
     st.stop()
 
-# Convert 'sold_date' to datetime format
+# Convert 'sold_date' to datetime format and remove time part
 listings_data["sold_date"] = pd.to_datetime(listings_data["sold_date"], errors="coerce").dt.normalize()
+
+# Drop rows with invalid 'sold_date' values to prevent issues in filtering/grouping
 listings_data = listings_data.dropna(subset=["sold_date"])
 
 # Sidebar filters
@@ -200,9 +202,15 @@ else:
     # ------------------------------------------------------------
     # Identify the top 10 firms by total deals over the selected period.
     # ------------------------------------------------------------
-    total_deals = daily_deals.groupby("Brokerage")["deal_count"].sum().reset_index()
+    # ---- Identify the top 10 firms based on total deals over the period.
+    total_deals = all_deals.groupby("Brokerage")["deal_count"].sum().reset_index()
     total_deals = total_deals.sort_values("deal_count", ascending=False).head(10)
     top10_firms = total_deals["Brokerage"].tolist()
+
+    # Only include the highlighted firm if it actually has deal data in the filtered month.
+    highlight_firm = "Royal LePage Noralta Real Estate"
+    if highlight_firm in all_deals["Brokerage"].unique() and highlight_firm not in top10_firms:
+        top10_firms.append(highlight_firm)
     
     # Filter the daily_deals DataFrame to only include the top 10 firms
     daily_deals_top10 = daily_deals[daily_deals["Brokerage"].isin(top10_firms)]
